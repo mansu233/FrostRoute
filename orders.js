@@ -4,7 +4,7 @@ const canRate=()=>ME.role=='admin'||(ME.perms&&ME.perms.editRate),dKey=()=>'draf
 const saveD=()=>{try{localStorage.setItem(dKey(),JSON.stringify({...OD,sel:[],hl:[]}))}catch(e){}};
 const pu=(p,u)=>u=='pcs'?1:(p.units&&p.units[u]&&p.units[u].qty)||1;
 const avail=p=>['pcs',...['packet','carton'].filter(k=>p.units&&p.units[k]&&p.units[k].qty)];
-const odraw=()=>{window.tgDraw&&tgDraw();typeof drawCust=='function'&&$('#cb')&&drawCust();return odrawX()};const odrawX=()=>OV?OV():(window.ordersRedraw&&$('#ow')&&ordersRedraw());
+const odraw=()=>{window.tgDraw&&tgDraw();window.cashRedraw&&$('#cw2')&&cashRedraw();typeof drawCust=='function'&&$('#cb')&&drawCust();return odrawX()};const odrawX=()=>OV?OV():(window.ordersRedraw&&$('#ow')&&ordersRedraw());
 function loadData(){
  if(!pUnsub)pUnsub=db.collection('products').onSnapshot(s=>{PRODS=s.docs.map(d=>({id:d.id,...d.data()}));drawProds();odraw()},()=>{pUnsub=null});
  if(!oUnsub){const c=db.collection('orders');oUnsub=(ME.role=='admin'?c:c.where('uid','==',U.uid)).onSnapshot(s=>{ORDS=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>b.at-a.at);odraw()},()=>{oUnsub=null})}

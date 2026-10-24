@@ -37,3 +37,20 @@ async function activityView(el){
  el.innerHTML='<p class=mu>Last 100 actions: user changes, product and rate changes, cancelled orders, reopened days, reassigned customers.</p>'+
  (s.docs.map(d=>d.data()).map(a=>`<div class=card><div class=row><b style=flex:1>${esc(a.action)}</b><span class=mu>${new Date(a.at).toLocaleString()}</span></div><div>${esc(a.detail)}</div><div class=mu>by ${esc(a.by)}</div></div>`).join('')||'<div class=card>Nothing logged yet.</div>');
 }
+
+/* member's own report */
+let MR={p:'month'};
+function myReport(el,member){
+ loadCash();
+ const draw=()=>{const n=new Date(),from=MR.p=='today'?new Date(n.getFullYear(),n.getMonth(),n.getDate()).getTime():MR.p=='week'?Date.now()-7*864e5:new Date(n.getFullYear(),n.getMonth(),1).getTime();
+  const o=ORDS.filter(x=>x.uid==U.uid&&x.status!='cancelled'&&x.at>=from),r=RET.filter(x=>x.uid==U.uid&&x.status!='cancelled'&&x.at>=from),p=PAY.filter(x=>x.uid==U.uid&&x.at>=from),cu={},pr={};
+  o.forEach(x=>{cu[x.cname]=(cu[x.cname]||0)+x.total;x.lines.forEach(l=>pr[l.name]=(pr[l.name]||0)+l.qty)});
+  const top=m=>Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,5),sale=sum(o,'total'),ret=sum(r,'total'),row=(l,v)=>`<div class=row><span style=flex:1>${l}</span><b>${v}</b></div>`;
+  el.innerHTML=`<div id=cw2>${member?'<button class="b s ghost" onclick="sig=\'\';route()">Back</button>':''}<h2>My report</h2>
+  <div class=row>${[['today','Today'],['week','7 days'],['month','This month']].map(x=>`<button class="b s ${MR.p==x[0]?'':'ghost'}" data-p=${x[0]}>${x[1]}</button>`).join('')}</div>
+  <div class=card>${row('Orders',o.length)}${row('Total sale (with VAT)',money(sale))}${row('Sales return','-'+money(ret).replace('-',''))}${row('Net sale',money(sale-ret))}${row('Average order',o.length?money(sale/o.length):'0.00')}${row('Payments collected',money(sum(p,'amount')))}</div>
+  <div class=card><b>Top customers</b>${top(cu).map(t=>row(esc(t[0]),money(t[1]))).join('')||'<div class=mu>No orders in this period.</div>'}</div>
+  <div class=card><b>Top products (quantity)</b>${top(pr).map(t=>row(esc(t[0]),t[1])).join('')||'<div class=mu>No orders in this period.</div>'}</div></div>`;
+  el.onclick=e=>{if(e.target.dataset.p){MR.p=e.target.dataset.p;draw()}}};
+ window.cashRedraw=draw;draw();
+}
