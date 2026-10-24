@@ -167,10 +167,10 @@ function drawUsers(){
 document.addEventListener('click',async e=>{
  const a=e.target.dataset&&e.target.dataset.act,id=e.target.dataset&&e.target.dataset.id;if(!a||!id||a=='perm'||a=='branch')return;
  const r=db.doc('users/'+id);
- if(a=='approved'||a=='rejected'||a=='disabled')await r.update({status:a});
- if(a=='pin'&&confirm('Reset this member PIN? They must set a new one.'))await r.update({pinReset:ts()});
- if(a=='logout'&&confirm('Force this member to sign in again?'))await r.update({forceLogoutAt:ts()});
- if(a=='role'&&confirm('Change role?')){const u=USERS.find(x=>x.id==id);await r.update({role:u.role=='admin'?'member':'admin'})}
+ if(a=='approved'||a=='rejected'||a=='disabled')await r.update({status:a});logAct('User '+a,(USERS.find(x=>x.id==id)||{}).name);
+ if(a=='pin'&&confirm('Reset this member PIN? They must set a new one.'))await r.update({pinReset:ts()});logAct('PIN reset',(USERS.find(x=>x.id==id)||{}).name);
+ if(a=='logout'&&confirm('Force this member to sign in again?'))await r.update({forceLogoutAt:ts()});logAct('Force logout',(USERS.find(x=>x.id==id)||{}).name);
+ if(a=='role'&&confirm('Change role?')){const u=USERS.find(x=>x.id==id);await r.update({role:u.role=='admin'?'member':'admin'});logAct('Role changed',u.name+' now '+(u.role=='admin'?'member':'admin'))}
 });
 document.addEventListener('change',async e=>{
  const d=e.target.dataset;if(!d||!d.id)return;

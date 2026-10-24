@@ -77,7 +77,7 @@ function editForm(p){
   const d={sl:g('sl')?num(g('sl')):(p.sl||Math.max(0,...PRODS.map(x=>x.sl||0))+1),name:g('name'),category:g('cat'),rate,
    units:{pcs:{bc:bc.pcs},packet:{bc:bc.packet,qty:q1},carton:{bc:bc.carton,qty:q2}},bcs,active:$('#f_act').checked,seasonFrom:g('sf'),seasonTo:g('st'),updatedAt:Date.now(),updatedBy:U.uid};
   if(IMG)d.img=IMG;
-  try{await ref.set(d,{merge:true});if(ME.role=='admin'&&g('cost')!=='')await db.doc('productCosts/'+ref.id).set({cost:num(g('cost'))});m.remove()}catch(x){er(x.message)}
+  try{await ref.set(d,{merge:true});logAct(p.id?'Product edited':'Product added',d.name+', rate '+d.rate+(p.id&&p.rate!=d.rate?' (was '+p.rate+')':''));if(ME.role=='admin'&&g('cost')!=='')await db.doc('productCosts/'+ref.id).set({cost:num(g('cost'))});m.remove()}catch(x){er(x.message)}
  };
 }
 /* ----- cost PIN (admin only, auto-hides after 30 s) ----- */
@@ -91,7 +91,7 @@ async function showCost(){
 }
 /* ----- camera barcode scan (1D only, no QR) ----- */
 async function scanCam(cb){
- if(!('BarcodeDetector' in window))return alert('Camera scan needs Chrome on Android. Use a Bluetooth scanner or type the barcode. iPhone camera scan comes in a later version.');
+ if(!('BarcodeDetector' in window))return scanZx(cb);
  const det=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39']}),v=document.createElement('video'),m=document.createElement('div');
  m.style.cssText='position:fixed;inset:0;background:#000;z-index:30;display:flex;flex-direction:column';
  v.style.cssText='flex:1;width:100%;object-fit:cover';v.setAttribute('playsinline','');m.appendChild(v);
@@ -119,4 +119,14 @@ function importCsv(){
   }
   await b.commit();alert(n+' products imported or updated.');
  };i.click();
+}
+
+/* iPhone / browsers without BarcodeDetector: ZXing library, loads once (needs internet the first time) */
+async function scanZx(cb){
+ if(!window.ZXing)try{await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';s.onload=ok;s.onerror=no;document.head.appendChild(s)})}catch(e){return alert('Needs internet the first time to load the scanner.')}
+ const F=ZXing.BarcodeFormat,h=new Map([[ZXing.DecodeHintType.POSSIBLE_FORMATS,[F.EAN_13,F.EAN_8,F.UPC_A,F.UPC_E,F.CODE_128,F.CODE_39]]]),r=new ZXing.BrowserMultiFormatReader(h),v=document.createElement('video'),m=document.createElement('div');
+ m.style.cssText='position:fixed;inset:0;background:#000;z-index:30;display:flex;flex-direction:column';v.style.cssText='flex:1;width:100%;object-fit:cover';v.setAttribute('playsinline','');v.muted=true;m.appendChild(v);
+ const x=document.createElement('button');x.className='b';x.textContent='Close';m.appendChild(x);document.body.appendChild(m);
+ const end=()=>{try{r.reset()}catch(e){}m.remove()};x.onclick=end;
+ r.decodeFromVideoDevice(null,v,res=>{if(res){if(navigator.vibrate)navigator.vibrate(80);end();cb(res.getText())}}).catch(()=>{end();alert('Camera blocked. Allow camera for this site.')});
 }

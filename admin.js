@@ -10,7 +10,7 @@ function dayLocked(){const l=CLS.find(x=>x.id==U.uid+'_'+todayD());if(l)alert('T
 async function reassign(c){
  const us=(await db.collection('users').where('status','==','approved').get()).docs.map(d=>({id:d.id,...d.data()}));
  const i=+prompt('Move "'+c.nameEn+'" to which salesman?\n'+us.map((u,k)=>(k+1)+'. '+u.name+(u.branch?' ('+u.branch+')':'')).join('\n'));
- if(!i||!us[i-1])return;await db.doc('customers/'+c.id).update({owner:us[i-1].id,ownerName:us[i-1].name,reassignedAt:Date.now()});alert('Customer moved to '+us[i-1].name);
+ if(!i||!us[i-1])return;await db.doc('customers/'+c.id).update({owner:us[i-1].id,ownerName:us[i-1].name,reassignedAt:Date.now()});logAct('Customer reassigned',c.nameEn+' to '+us[i-1].name);alert('Customer moved to '+us[i-1].name);
 }
 function dl(name,rows){
  const csv='\uFEFF'+rows.map(r=>r.map(x=>'"'+String(x??'').replace(/"/g,'""')+'"').join(',')).join('\n'),a=document.createElement('a');
@@ -28,4 +28,12 @@ function exportView(el){
   if(k=='returns')dl(k,[['return','date','customer','salesman','refund','reason','total'],...RET.map(r=>[r.no,dt(r.at),r.cname,r.by,r.refund,r.reason,r.total])]);
   if(k=='closings')dl(k,[['day','salesman','total_sale','sales_return','net_sale','cash_received','cash_return','expense','to_hand_over','counted','difference','status','note'],...CLS.map(c=>[c.day,c.by,c.sale,c.ret,c.net,c.recv,c.cr,c.e,c.hand,c.counted,c.diff,c.status,c.note])]);
  };
+}
+
+function logAct(a,d){try{db.collection('activity').add({uid:U.uid,by:ME.name,action:a,detail:d||'',at:Date.now()})}catch(e){}}
+async function activityView(el){
+ el.innerHTML='<p class=mu>Loading…</p>';
+ const s=await db.collection('activity').orderBy('at','desc').limit(100).get();
+ el.innerHTML='<p class=mu>Last 100 actions: user changes, product and rate changes, cancelled orders, reopened days, reassigned customers.</p>'+
+ (s.docs.map(d=>d.data()).map(a=>`<div class=card><div class=row><b style=flex:1>${esc(a.action)}</b><span class=mu>${new Date(a.at).toLocaleString()}</span></div><div>${esc(a.detail)}</div><div class=mu>by ${esc(a.by)}</div></div>`).join('')||'<div class=card>Nothing logged yet.</div>');
 }

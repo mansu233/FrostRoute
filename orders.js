@@ -28,7 +28,7 @@ function ordersHome(el,member){
  el.onclick=async e=>{const d=e.target.dataset,o=ORDS.find(x=>x.id==d.id);if(!d.a)return;
   if(d.a=='share')return open(waLink(o));
   if(d.a=='rep'){orderStart(CUST.find(c=>c.id==o.cid)||null,o.lines.map(l=>({...l,st:''})))}
-  if(d.a=='can'){const r=prompt('Reason for cancelling order #'+o.no);if(r)await db.doc('orders/'+o.id).update({status:'cancelled',reason:r,cancelledBy:ME.name,cancelledAt:Date.now()})}}};
+  if(d.a=='can'){const r=prompt('Reason for cancelling order #'+o.no);if(r)await db.doc('orders/'+o.id).update({status:'cancelled',reason:r,cancelledBy:ME.name,cancelledAt:Date.now()}).then(()=>logAct('Order cancelled','#'+o.no+', '+o.cname+', '+r))}}};
  window.ordersRedraw=draw;draw();
 }
 function orderStart(c,lines){
@@ -79,13 +79,19 @@ function orderView(){
  ${qa(l).map(n=>`<button class="b s ghost" data-a=add data-n=${n} data-i=${i}>+${n}</button>`).join('')}<span class=mu>x</span>
  <input type=number step=any value=${l.rate} data-a=rate data-i=${i} style="width:90px" ${canRate()?'':'readonly'}><b style="margin-left:auto">${money(l.qty*l.rate)}</b></div></div>`).join('')||'<div class=card>No items yet. Scan, search, or use Shelf Check.</div>'}</div>
  <div class=card><div class=row><span style=flex:1>Subtotal</span><b>${money(sub)}</b></div><div class=row><span style=flex:1>VAT ${vp}%</span><b>${money(vat)}</b></div><div class=row><span style=flex:1><b>Total</b></span><b style="font-size:20px">${money(tot)}</b></div>
- <input id=obu type=number placeholder="Customer budget (optional)" value="${OD.budget||''}">${OD.budget?`<p class="${tot>OD.budget?'err':'mu'}">${tot>OD.budget?'Over budget by '+money(tot-OD.budget)+'. Reduce the lowest priority lines (bottom of the list).':'Within budget, '+money(OD.budget-tot)+' left.'}</p>`:''}
+ <input id=obu type=number placeholder="Customer budget (optional)" value="${OD.budget||''}">${OD.budget&&tot>OD.budget?'<button class="b s" id=ofit>Auto-fit to budget</button>':''}${OD.budget?`<p class="${tot>OD.budget?'err':'mu'}">${tot>OD.budget?'Over budget by '+money(tot-OD.budget)+'. Reduce the lowest priority lines (bottom of the list).':'Within budget, '+money(OD.budget-tot)+' left.'}</p>`:''}
  <select id=opy><option value=cash ${OD.pay=='cash'?'selected':''}>Cash</option><option value=credit ${OD.pay=='credit'?'selected':''}>Credit</option></select><input id=ono placeholder="Order note" value="${esc(OD.note)}"></div>
  <button class=b id=osd>Send order to WhatsApp</button><button class="b ghost red" id=oca style="color:var(--rd)">Cancel entire order</button>
  <div id=undo></div>`;
  if(UNDO)showUndo();
  const hl=()=>{if(OD.hl.length){const e=document.querySelector('[id^=l_]');setTimeout(()=>{OD.hl=[];},3000)}};hl();
  $('#ox').onclick=()=>{saveD();closeOv()};
+ if($('#ofit'))$('#ofit').onclick=()=>{let need=tot-OD.budget;const k=1+vp/100,plan=[],cand=rows.filter(r=>r.l.st!='zero').reverse().concat(rows.filter(r=>r.l.st=='zero').reverse());
+  for(const r of cand){if(need<=0)break;const v=r.l.qty*r.l.rate*k;if(v<=need){plan.push({i:r.i,rm:1,t:'Remove '+r.l.name});need-=v}else{const q=Math.ceil(need/(r.l.rate*k));plan.push({i:r.i,q,t:'Reduce '+r.l.name+' by '+q});need=0}}
+  if(need>0)return alert('Even removing everything does not fit this budget.');
+  if(plan.some(x=>OD.lines[x.i].st=='zero')&&!confirm('Zero (empty shelf) items must be cut too. Continue?'))return;
+  if(!confirm('Suggested changes:\n- '+plan.map(x=>x.t).join('\n- ')+'\n\nApply?'))return;
+  plan.forEach(x=>{const l=OD.lines[x.i];if(x.rm||l.qty-x.q<=0)l.rm=1;else l.qty-=x.q});OD.lines=OD.lines.filter(l=>!l.rm);OD.sel=[];saveD();orderView()};
  const meta=()=>{if($('#wn')){OD.walk.name=$('#wn').value;OD.walk.phone=$('#wp').value}OD.pay=$('#opy').value;OD.note=$('#ono').value;saveD()};
  m.onchange=e=>{const d=e.target.dataset;if(!d.a){if(e.target.id=='obu'){OD.budget=+e.target.value||0;saveD();return orderView()}return meta()}
   const l=OD.lines[d.i];if(d.a=='sel')OD.sel=e.target.checked?[...OD.sel,+d.i]:OD.sel.filter(x=>x!=d.i);
@@ -118,7 +124,7 @@ async function sendOrder(sub,vat,tot,vp){
  if(!OD.lines.length)return alert('Add at least one product.');
  const n=(+localStorage.getItem('ordn_'+U.uid)||0)+1,no=ME.name.replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase()+n,c=OD.cust;
  const o={no,cid:c?c.id:'',cname:c?c.nameEn:(OD.walk.name||'Walk-in'),cnameAr:c?c.nameAr:'',phone:c?c.phone:OD.walk.phone,lines:OD.lines.map(l=>({...l,total:+(l.qty*l.rate).toFixed(2)})),sub,vatPct:vp,vat,total:tot,pay:OD.pay,note:OD.note,budget:OD.budget,uid:U.uid,by:ME.name,branch:ME.branch||'',at:Date.now(),status:'sent'};
- try{db.collection('orders').add(o);localStorage.setItem('ordn_'+U.uid,n)}catch(e){return alert(e.message)}
+ try{db.collection('orders').add(o);if(o.lines.some(l=>l.edited))logAct('Rate edited in order','#'+no+', '+o.cname);localStorage.setItem('ordn_'+U.uid,n)}catch(e){return alert(e.message)}
  OD=null;localStorage.removeItem(dKey());closeOv();window.open(waLink(o));if(window.ordersRedraw)ordersRedraw();
 }
 function waText(o){const d=new Date(o.at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}),L=ul=>({pcs:'Pcs',packet:'Pack',carton:'Cart'}[ul]||ul);
