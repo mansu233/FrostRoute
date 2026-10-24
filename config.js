@@ -1,6 +1,6 @@
 // ONE place to rename the app or change the version.
 // Every update: raise APP.version (the service worker reads this file, so phones refresh automatically).
-const APP = { name: "FrostRoute", version: "0.8.1", date: "2026-10-24" };
+const APP = { name: "FrostRoute", version: "0.9.0", date: "2026-10-24" };
 
 // Paste your Firebase web app config (Firebase console > Project settings > Your apps)
 const firebaseConfig = {
