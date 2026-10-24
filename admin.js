@@ -54,3 +54,14 @@ function myReport(el,member){
   el.onclick=e=>{if(e.target.dataset.p){MR.p=e.target.dataset.p;draw()}}};
  window.cashRedraw=draw;draw();
 }
+
+/* admin Home dashboard */
+async function homeView(el){
+ loadCash();
+ const draw=async()=>{const t=todayD(),o=ORDS.filter(x=>x.status!='cancelled'&&isoD(x.at)==t),ret=RET.filter(x=>x.day==t&&x.status!='cancelled');
+  let pend=0;try{pend=(await db.collection('users').where('status','==','pending').get()).size}catch(e){}
+  const unc=[...new Set(o.map(x=>x.uid))].filter(u=>!CLS.find(c=>c.id==u+'_'+t)).length,tile=(l,v,go)=>`<div class=tile ${go?`data-go=${go} style="cursor:pointer"`:''}><div class=mu>${l}</div><b style="font-size:22px">${v}</b></div>`;
+  el.innerHTML=`<div id=cw2><h2>Today, ${t}</h2><div class=grid>${tile('Sales (with VAT)',money(sum(o,'total')))}${tile('Orders',o.length,'ord')}${tile('Users waiting approval',pend,'users')}${tile('Days not closed yet',unc,'cash')}${tile('Returns to approve',PEND.length,'cash')}${tile('Returns today',money(sum(ret,'total')))}</div></div>`;
+  el.onclick=e=>{const g=e.target.closest('[data-go]');if(g){if(g.dataset.go=='users')filter='pending';tab=g.dataset.go;adminView()}}};
+ window.cashRedraw=draw;draw();
+}

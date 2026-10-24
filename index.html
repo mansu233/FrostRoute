@@ -13,16 +13,16 @@ h1{margin:0 0 6px;font-size:30px;font-weight:800;letter-spacing:-.8px}h2{font-si
 input,select,textarea{width:100%;min-height:48px;padding:12px 14px;margin:5px 0;border:1.5px solid var(--bd);border-radius:12px;background:var(--card);color:var(--tx);font:inherit;outline:0}
 input:focus,select:focus,textarea:focus{border-color:var(--pr);box-shadow:0 0 0 3px rgba(10,91,181,.15)}input[type=checkbox]{min-height:0;width:22px;height:22px;accent-color:var(--pr)}
 .pin{text-align:center;font-size:32px;letter-spacing:14px;min-height:64px}
-.b{display:block;width:100%;min-height:48px;padding:12px;margin:8px 0;border:0;border-radius:12px;background:var(--pr);color:#fff;font:700 16px system-ui;cursor:pointer;transition:transform .08s}
+.b{display:block;width:100%;min-height:48px;padding:12px;margin:8px 0;border:0;border-radius:12px;background:var(--pr);color:#fff;font-family:inherit;font-weight:700;font-size:16px;cursor:pointer;transition:transform .08s}
 .b:active{transform:scale(.97)}.b.ghost{background:transparent;color:var(--pr);border:1.5px solid var(--bd)}.b.s{display:inline-block;width:auto;min-height:40px;padding:8px 14px;margin:4px 4px 0 0;font-size:14px;border-radius:10px}.b.red{background:var(--rd);color:#fff}.b.grn{background:var(--gr);color:#fff}.b[disabled]{opacity:.5}
 .top{display:flex;align-items:center;gap:6px;padding:11px 14px;background:linear-gradient(135deg,#0a4592,#1479d6);color:#fff;position:sticky;top:0;z-index:5;box-shadow:0 2px 10px rgba(10,60,120,.3)}
-.top b{font-size:19px;font-weight:800;letter-spacing:-.4px}.top small{opacity:.75;font-size:12px}.top .sp{flex:1}.top button{background:rgba(255,255,255,.18);border:0;color:#fff;border-radius:9px;padding:8px 11px;font:600 13px system-ui;min-height:36px}
+.top b{font-size:19px;font-weight:800;letter-spacing:-.4px}.top small{opacity:.75;font-size:12px}.top .sp{flex:1}.top button{background:rgba(255,255,255,.18);border:0;color:#fff;border-radius:9px;padding:8px 11px;font-family:inherit;font-weight:600;font-size:13px;min-height:36px}
 #sy{font-size:12.5px;color:#fff}
 #nav{position:fixed;left:0;right:0;bottom:0;z-index:15;display:flex;background:var(--card);border-top:1px solid var(--bd);padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -4px 16px rgba(15,40,70,.08)}
-#nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 2px 8px;border:0;background:none;color:var(--mu);font:600 11px system-ui;position:relative;min-height:58px}
+#nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 2px 8px;border:0;background:none;color:var(--mu);font-family:inherit;font-weight:600;font-size:11px;position:relative;min-height:58px}
 #nav button.on{color:var(--pr)}#nav button.on:before{content:"";position:absolute;top:0;left:28%;right:28%;height:3px;border-radius:0 0 4px 4px;background:var(--pr)}
 .tabs{display:flex;gap:8px;margin:10px 0;overflow-x:auto;scrollbar-width:none}.atabs{display:none}
-.tabs button{flex:1 0 auto;min-height:42px;padding:9px 16px;border:1.5px solid var(--bd);border-radius:99px;background:var(--card);color:var(--tx);font:600 14px system-ui}.tabs .on{background:var(--pr);color:#fff;border-color:var(--pr)}
+.tabs button{flex:1 0 auto;min-height:42px;padding:9px 16px;border:1.5px solid var(--bd);border-radius:99px;background:var(--card);color:var(--tx);font-family:inherit;font-weight:600;font-size:14px}.tabs .on{background:var(--pr);color:#fff;border-color:var(--pr)}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:14px;margin:10px 0;box-shadow:var(--sh)}
 .tag{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700;color:#fff;letter-spacing:.2px}.pending{background:var(--pk)}.approved{background:var(--gr)}.rejected,.disabled{background:var(--rd)}.admin{background:var(--pr)}
 .perm{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:15px}.perm input{margin:0}
@@ -46,9 +46,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--pr);box-shadow:0 0 0 
 document.title=APP.name;
 function memberOrders(){NAVK='ord';R(header()+'<div class=wrap id=ww></div>');syncDot();ordersHome($('#ww'),true)}
 function memberClose(){NAVK='cash';R(header()+'<div class=wrap id=xw></div>');syncDot();closingView($('#xw'),true)}
-function memberLoad(){R(header()+'<div class=wrap id=xw></div>');syncDot();loadListView($('#xw'),true)}
-function memberRank(){CV.tab='rank';memberCust()}
-function memberReports(){R(header()+'<div class=wrap id=xw></div>');syncDot();myReport($('#xw'),true)}
+function memberLoad(){NAVK='load';R(header()+'<div class=wrap id=xw></div>');syncDot();loadListView($('#xw'),true)}
+function memberRank(){CV.tab='rank';memberCust();NAVK='rank';$('#nav')&&$('#nav').querySelectorAll('button').forEach(b=>b.className=b.dataset.nav=='rank'?'on':'')}
+function memberReports(){NAVK='rep';R(header()+'<div class=wrap id=xw></div>');syncDot();myReport($('#xw'),true)}
 function memberCust(){NAVK='cust';R(header()+'<div class=wrap id=cw></div>');syncDot();customersView($('#cw'),true)}
 function memberProducts(){NAVK='prod';R(header()+'<div class=wrap id=pw></div>');syncDot();productsView($('#pw'),true)}
 firebase.initializeApp(firebaseConfig);
@@ -57,7 +57,7 @@ db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
 const $=s=>document.querySelector(s),app=$('#app'),R=h=>app.innerHTML=h;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const hash=async(p,u)=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(u+':'+p)))].map(b=>b.toString(16).padStart(2,'0')).join('');
-let U=null,ME=null,CFG={...DEFAULTS},unlocked=false,sig='',unsubs=[],hiddenAt=0,USERS=[],filter='pending',tab='users';
+let U=null,ME=null,CFG={...DEFAULTS},unlocked=false,sig='',unsubs=[],hiddenAt=0,USERS=[],filter='pending',tab='home';
 const K=()=>'pin_'+U.uid, ts=()=>Date.now();
 
 /* ---------- sign in / sign up ---------- */
@@ -88,13 +88,13 @@ auth.onAuthStateChanged(u=>{
  unsubs.forEach(f=>f());unsubs=[];U=u;ME=null;unlocked=false;sig='';
  if(!u)return loginView();
  unsubs.push(db.doc('users/'+u.uid).onSnapshot(s=>{ME=s.exists?s.data():null;route()},()=>{}));
- unsubs.push(db.doc('settings/app').onSnapshot(s=>{CFG={...DEFAULTS,...(s.data()||{})};window.annDraw&&annDraw()},()=>{}));
+ unsubs.push(db.doc('settings/app').onSnapshot(s=>{CFG={...DEFAULTS,...(s.data()||{})};window.annDraw&&annDraw();applyFont()},()=>{}));
 });
 function hasPin(){try{return JSON.parse(localStorage.getItem(K())).v===(ME.pinReset||0)}catch(e){return false}}
 function route(){
  if(!U)return;
  if(!ME)return R('<div class="box"><p class="mu">Setting up your account…</p></div>');
- const lt=+localStorage.getItem('login_'+U.uid)||0;
+ applyFont();const lt=+localStorage.getItem('login_'+U.uid)||0;
  if((ME.forceLogoutAt||0)>lt||(CFG.passwordDays&&ts()-lt>CFG.passwordDays*864e5)){localStorage.removeItem(K());return auth.signOut()}
  const s=JSON.stringify([ME.status,ME.role,ME.pinReset,ME.perms,ME.branch,unlocked,hasPin()]);
  if(s===sig)return;sig=s;
@@ -134,12 +134,19 @@ function pinView(setup){
 }
 
 /* ---------- shared header ---------- */
-const ICO={home:'<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20c0-2.6-1.4-4.5-3.5-5.4"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/>',box:'<path d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10"/>',cart:'<path d="M4 5h2l2.2 10.5a1 1 0 0 0 1 .8h8.3a1 1 0 0 0 1-.8L20 8H7"/><circle cx="10" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/>',cash:'<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/>'};
+const ICO={home:'<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20c0-2.6-1.4-4.5-3.5-5.4"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/>',box:'<path d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10"/>',cart:'<path d="M4 5h2l2.2 10.5a1 1 0 0 0 1 .8h8.3a1 1 0 0 0 1-.8L20 8H7"/><circle cx="10" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/>',chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',list:'<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',cash:'<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/>'};
 const ic=k=>`<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICO[k]}</svg>`;
 let NAVK='home';
-function navItems(){const p=ME.perms||{};return ME.role=='admin'?[['users','Users','user'],['prod','Products','box'],['cust','Customers','users'],['ord','Orders','cart'],['cash','Cash','cash']]:[['home','Home','home'],...(p.manageCustomers?[['cust','Customers','users']]:[]),...(p.createOrders?[['ord','Orders','cart']]:[]),...(p.dayClosing?[['cash','Closing','cash']]:[]),...(p.viewProducts?[['prod','Products','box']]:[])]}
+const NAV={home:['Home','home'],users:['Users','user'],prod:['Products','box'],cust:['Customers','users'],ord:['Orders','cart'],cash:['Cash','cash'],rank:['Ranking','chart'],load:['Load list','list'],rep:['Reports','chart']};
+const NPERM={prod:'viewProducts',cust:'manageCustomers',ord:'createOrders',cash:'dayClosing',rank:'viewRanking',load:'loadList',rep:'viewReports'};
+function navItems(){const adm=ME.role=='admin',p=ME.perms||{},L=(adm?CFG.navAdmin:CFG.navMember)||[];
+ return L.filter(k=>NAV[k]&&(adm?!['rank','load','rep'].includes(k):k!='users'&&(k=='home'||p[NPERM[k]]))).map(k=>[k,k=='cash'&&!adm?'Closing':NAV[k][0],NAV[k][1]])}
+const navSel=(id,v)=>`<select id=${id}><option value="">(empty)</option>${Object.keys(NAV).map(k=>`<option value=${k} ${k==v?'selected':''}>${NAV[k][0]}</option>`).join('')}</select>`;
+function applyFont(){const sys=ME&&ME.role!='admin'&&localStorage.getItem('sysfont')=='1',f=sys?FONTS[0]:(FONTS.find(x=>x.id==(CFG.font||1))||FONTS[0]);let l=$('#gf');
+ if(f.gf){if(!l){l=document.createElement('link');l.id='gf';l.rel='stylesheet';document.head.appendChild(l)}const u='https://fonts.googleapis.com/css2?'+f.gf+'&display=swap';if(l.getAttribute('href')!=u)l.setAttribute('href',u)}else if(l)l.remove();
+ document.body.style.fontFamily=f.css+',system-ui,sans-serif';if(!sys)try{localStorage.setItem('font',f.id)}catch(e){}}
 function header(){const adm=ME.role=='admin',cur=adm?tab:NAVK;return `<div class=top><b>${esc(APP.name)}</b><small>v${APP.version}</small><span class=sp></span><span id=sy></span>${adm?'<button data-nav=set>Settings</button>':''}<button onclick="unlocked=false;sig='';route()">Lock</button><button onclick="auth.signOut()">Sign out</button></div><nav id=nav>${navItems().map(([k,l,i])=>`<button data-nav=${k} class="${cur==k?'on':''}">${ic(i)}<span>${l}</span></button>`).join('')}</nav>`}
-function navGo(k){if(ME.role=='admin'){tab=k;return adminView()}({home:()=>{sig='';route()},cust:memberCust,ord:memberOrders,cash:memberClose,prod:memberProducts})[k]()}
+function navGo(k){if(ME.role=='admin'){tab=k;return adminView()}({home:()=>{sig='';route()},cust:memberCust,ord:memberOrders,cash:memberClose,prod:memberProducts,rank:memberRank,load:memberLoad,rep:memberReports})[k]()}
 document.addEventListener('click',e=>{const n=e.target.closest('[data-nav]');if(n){const o=$('#ov');o&&o.remove();OV=null;navGo(n.dataset.nav)}});
 function syncDot(){const e=$('#sy');if(e)e.innerHTML=`<span class="dot ${navigator.onLine?'':'off'}"></span> ${navigator.onLine?'Online':'Offline'}`}
 addEventListener('online',syncDot);addEventListener('offline',syncDot);
@@ -149,16 +156,16 @@ function memberView(){NAVK='home';
  const on=Object.keys(PERMS).filter(k=>ME.perms&&ME.perms[k]);
  R(header()+`<div class=wrap><h2>Hello ${esc(ME.name)}</h2><p class=mu>Branch: ${esc(ME.branch||'not set')}</p><div id=ann></div><div id=tg></div>
  ${on.length?`<div class=grid>${on.map(k=>k=='viewProducts'?`<div class=tile onclick="memberProducts()" style="cursor:pointer;border-color:var(--pr)"><b>Products</b><div class=mu>Search, scan, prices</div></div>`:k=='manageCustomers'?`<div class=tile onclick="memberCust()" style="cursor:pointer;border-color:var(--pr)"><b>Customers</b><div class=mu>Today's visits, search, reminders</div></div>`:k=='createOrders'?`<div class=tile onclick="memberOrders()" style="cursor:pointer;border-color:var(--pr)"><b>Orders</b><div class=mu>New order, history</div></div>`:k=='dayClosing'?`<div class=tile onclick="memberClose()" style="cursor:pointer;border-color:var(--pr)"><b>Day closing</b><div class=mu>Cash, expenses, money counter</div></div>`:k=='loadList'?`<div class=tile onclick="memberLoad()" style="cursor:pointer;border-color:var(--pr)"><b>Load list</b><div class=mu>Tomorrow's vehicle load</div></div>`:k=='viewRanking'?`<div class=tile onclick="memberRank()" style="cursor:pointer;border-color:var(--pr)"><b>Customer ranking</b><div class=mu>Best to worst, with history</div></div>`:k=='viewReports'?`<div class=tile onclick="memberReports()" style="cursor:pointer;border-color:var(--pr)"><b>My reports</b><div class=mu>Sales, returns, top customers</div></div>`:['visitPlan','collectPayments','makeReturns','moneyCounter','editRate','addProducts','cancelSent'].includes(k)?'':`<div class=tile>${PERMS[k]}<div class=mu>Coming in a later phase</div></div>`).join('')}</div>`
- :'<div class=card>No features are switched on for you yet. Ask the admin to give access.</div>'}</div>`);
- syncDot();loadCash();tgDraw();annDraw();
+ :'<div class=card>No features are switched on for you yet. Ask the admin to give access.</div>'}<label class=perm style="margin-top:14px"><input type=checkbox id=sysf ${localStorage.getItem('sysfont')=='1'?'checked':''}>Use my phone's default font</label></div>`);
+ syncDot();loadCash();tgDraw();annDraw();$('#sysf').onchange=e=>{localStorage.setItem('sysfont',e.target.checked?'1':'0');applyFont()};
 }
 
 /* ---------- admin panel ---------- */
 function adminView(){
  R(header()+`<div class=wrap><div id=ann></div><div class="tabs atabs"><button id=t1>Users</button><button id=t3>Products</button><button id=t4>Customers</button><button id=t5>Orders</button><button id=t6>Cash</button><button id=t2>Settings</button></div><div id=tb></div></div>`);
  syncDot();annDraw();$('#t1').onclick=()=>{tab='users';adminView()};$('#t2').onclick=()=>{tab='set';adminView()};$('#t3').onclick=()=>{tab='prod';adminView()};$('#t4').onclick=()=>{tab='cust';adminView()};$('#t5').onclick=()=>{tab='ord';adminView()};$('#t6').onclick=()=>{tab='cash';adminView()};
- $('#t'+({users:1,set:2,prod:3,cust:4,ord:5,cash:6}[tab])).className='on';
- if(tab=='users'){
+ {const tb=$('#t'+({users:1,set:2,prod:3,cust:4,ord:5,cash:6}[tab]));tb&&(tb.className='on')}
+ if(tab=='home')homeView($('#tb'));else if(tab=='users'){
   $('#tb').innerHTML=`<select id=f>${['pending','approved','rejected','disabled','all'].map(x=>`<option ${x==filter?'selected':''} value=${x}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select><div id=ul></div>`;
   $('#f').onchange=e=>{filter=e.target.value;drawUsers()};
   unsubs.push(db.collection('users').orderBy('createdAt','desc').onSnapshot(s=>{USERS=s.docs.map(d=>({id:d.id,...d.data()}));drawUsers()}));
@@ -195,11 +202,15 @@ document.addEventListener('change',async e=>{
 });
 function settingsView(){
  $('#tb').innerHTML=`<div class=card><h2>Settings (admin only)</h2>${Object.entries(SETTING_LABELS).map(([k,l])=>`<label class=mu>${l}</label><input type=number id=s_${k} value="${CFG[k]}">`).join('')}
+ <label class=mu>Font (for everyone)</label><select id=s_font onchange="CFG.font=+this.value;applyFont()">${FONTS.map(f=>`<option value=${f.id} ${f.id==(CFG.font||1)?'selected':''}>${f.id}. ${f.name}</option>`).join('')}</select>
+ <label class=mu>Admin bottom bar (6 buttons, in order)</label>${[0,1,2,3,4,5].map(i=>navSel('na'+i,(CFG.navAdmin||[])[i])).join('')}
+ <label class=mu>Member bottom bar (members only see what their permissions allow)</label>${[0,1,2,3,4,5].map(i=>navSel('nm'+i,(CFG.navMember||[])[i])).join('')}
  <label class=mu>Announcement (shown on every member's home screen, leave empty to hide)</label><textarea id=s_ann rows=3 style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);font:inherit">${esc(CFG.announcement||'')}</textarea><button class=b id=sv>Save settings</button><p class=mu id=sm></p></div>
  <div class=card><h2>About</h2><p class=mu>${esc(APP.name)} · version ${APP.version} · ${APP.date}</p></div>`;
- $('#sv').onclick=async()=>{const o={};for(const k in SETTING_LABELS)o[k]=+$('#s_'+k).value;o.announcement=$('#s_ann').value.trim();await db.doc('settings/app').set(o,{merge:true});$('#sm').textContent='Saved.'};
+ $('#sv').onclick=async()=>{const o={};for(const k in SETTING_LABELS)o[k]=+$('#s_'+k).value;o.announcement=$('#s_ann').value.trim();o.font=+$('#s_font').value;const nv=p=>[...new Set([0,1,2,3,4,5].map(i=>$('#'+p+i).value).filter(Boolean))];o.navAdmin=nv('na');o.navMember=nv('nm');await db.doc('settings/app').set(o,{merge:true});Object.assign(CFG,o);applyFont();alert('Saved.');adminView()};
 }
 
+applyFont();
 /* ---------- service worker + auto reload on new version ---------- */
 if('serviceWorker' in navigator){
  const had=!!navigator.serviceWorker.controller;
