@@ -70,11 +70,12 @@ function drawCust(){
  <button class="b s grn" data-a=in data-id=${c.id}>Check in</button><button class="b s ghost" data-a=nav data-id=${c.id}>Navigate</button>
  <a class="b s ghost" style="display:inline-block;text-decoration:none" href="tel:${esc(c.phone)}">Call</a><a class="b s ghost" style="display:inline-block;text-decoration:none" href="https://wa.me/${c.phone?'966'+c.phone.slice(1):''}">WhatsApp</a>
  <button class="b s ghost" data-a=rem data-id=${c.id}>Reminder</button><button class="b s ghost" data-a=today data-id=${c.id}>Random visit today</button>
- <button class="b s ghost" data-a=skip data-id=${c.id}>Skip next week</button><button class="b s ghost" data-a=edit data-id=${c.id}>Edit</button></div></div>`}).join('');
+ <button class="b s ghost" data-a=skip data-id=${c.id}>Skip next week</button><button class="b s ghost" data-a=edit data-id=${c.id}>Edit</button></div>
+ ${admin||(ME.perms&&ME.perms.createOrders)?`<div><button class="b s" data-a=shelf data-id=${c.id}>Shelf Check</button><button class="b s" data-a=order data-id=${c.id}>New order</button></div>`:''}</div>`}).join('');
  $('#cq').oninput=e=>{CV.q=e.target.value;const p=e.target.selectionStart;drawCust();const n=$('#cq');n.focus();n.setSelectionRange(p,p)};
  $('#cn').onclick=async()=>{try{CV.pos=await getPos();drawCust()}catch(x){alert('Turn on GPS and allow location for this site.')}};
  b.onclick=async e=>{const d=e.target.dataset,c=CUST.find(x=>x.id==d.id);if(!d.a)return;
-  if(d.a=='new')return custForm({});if(d.a=='edit')return custForm(c);
+  if(d.a=='new')return custForm({});if(d.a=='shelf')return shelfStart(c);if(d.a=='order')return orderStart(c);if(d.a=='edit')return custForm(c);
   if(d.a=='nav')return c.lat?open(`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`):alert('No saved location. Check in at the shop to save it.');
   if(d.a=='today')return db.doc('customers/'+c.id).update({extraDate:todayD()});
   if(d.a=='skip'){const n=new Date();n.setDate(n.getDate()+((c.day-n.getDay()+7)%7||7));await db.doc('customers/'+c.id).update({skipDate:isoD(+n)});return alert('Skipped on '+isoD(+n)+'. The weekly plan returns after that.')}
