@@ -55,11 +55,17 @@ function editForm(p){
  ${f('q2','Pieces per carton',(u.carton&&u.carton.qty)||'','number')}${f('b2','Carton barcode',(u.carton&&u.carton.bc)||'')}
  ${f('sf','Season from',p.seasonFrom||'','date')}${f('st','Season to',p.seasonTo||'','date')}
  ${ME.role=='admin'?f('cost','Cost (leave empty to keep the saved cost)','','number'):''}
+ <button class="b ghost" id=f_rd type=button>Read pack photo (name, size, barcode)</button><input id=f_rf type=file accept="image/*" capture=environment hidden><p class=mu id=f_rs></p>
  <label class=mu>Image</label><input id=f_img type=file accept="image/*" capture=environment>
  <label class=perm><input type=checkbox id=f_act ${p.active===false?'':'checked'}>Active</label><p class=err id=fe></p>
  <button class=b id=fs>Save product</button><button class="b ghost" id=fc>Cancel</button></div>`;
  document.body.appendChild(m);
  $('#fc').onclick=()=>m.remove();
+ $('#f_rd').onclick=()=>$('#f_rf').click();
+ $('#f_rf').onchange=async e=>{const fl=e.target.files[0];if(!fl)return;$('#f_rs').textContent='Reading pack… (first time needs internet)';
+  try{const r=await readPack(fl),set=(i,v)=>{if(v&&!$('#f_'+i).value)$('#f_'+i).value=v};
+   set('name',(r.name+(r.size&&!r.name.includes(r.size)?' '+r.size:'')).trim());set('b0',r.barcode);
+   $('#f_rs').textContent='Done'+(r.barcode?'':' (barcode not read, scan it with the Scan button)')+'. Check every field.'}catch(x){$('#f_rs').textContent=x.message}};
  $('#f_img').onchange=e=>{const fl=e.target.files[0];if(!fl)return;const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),s=Math.min(1,160/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);IMG=c.toDataURL('image/jpeg',.6)};im.src=URL.createObjectURL(fl)};
  $('#fs').onclick=async()=>{
   const g=i=>$('#f_'+i).value.trim(),bc={pcs:bcn(g('b0')),packet:bcn(g('b1')),carton:bcn(g('b2'))},q1=num(g('q1')),q2=num(g('q2')),rate=num(g('rate')),er=t=>$('#fe').textContent=t;
