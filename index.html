@@ -28,8 +28,10 @@ input,select{width:100%;padding:12px;margin:5px 0;border:1px solid var(--bd);bor
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="products.js"></script>
 <script>
 document.title=APP.name;
+function memberProducts(){R(header()+'<div class=wrap id=pw></div>');syncDot();productsView($('#pw'),true)}
 firebase.initializeApp(firebaseConfig);
 const auth=firebase.auth(),db=firebase.firestore();
 db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
@@ -121,21 +123,21 @@ addEventListener('online',syncDot);addEventListener('offline',syncDot);
 function memberView(){
  const on=Object.keys(PERMS).filter(k=>ME.perms&&ME.perms[k]);
  R(header()+`<div class=wrap><h2>Hello ${esc(ME.name)}</h2><p class=mu>Branch: ${esc(ME.branch||'not set')}</p>
- ${on.length?`<div class=grid>${on.map(k=>`<div class=tile>${PERMS[k]}<div class=mu>Coming in a later phase</div></div>`).join('')}</div>`
+ ${on.length?`<div class=grid>${on.map(k=>k=='viewProducts'?`<div class=tile onclick="memberProducts()" style="cursor:pointer;border-color:var(--pr)"><b>Products</b><div class=mu>Search, scan, prices</div></div>`:`<div class=tile>${PERMS[k]}<div class=mu>Coming in a later phase</div></div>`).join('')}</div>`
  :'<div class=card>No features are switched on for you yet. Ask the admin to give access.</div>'}</div>`);
  syncDot();
 }
 
 /* ---------- admin panel ---------- */
 function adminView(){
- R(header()+`<div class=wrap><div class=tabs><button id=t1>Users</button><button id=t2>Settings</button></div><div id=tb></div></div>`);
- syncDot();$('#t1').onclick=()=>{tab='users';adminView()};$('#t2').onclick=()=>{tab='set';adminView()};
- $('#t'+(tab=='users'?1:2)).className='on';
+ R(header()+`<div class=wrap><div class=tabs><button id=t1>Users</button><button id=t3>Products</button><button id=t2>Settings</button></div><div id=tb></div></div>`);
+ syncDot();$('#t1').onclick=()=>{tab='users';adminView()};$('#t2').onclick=()=>{tab='set';adminView()};$('#t3').onclick=()=>{tab='prod';adminView()};
+ $('#t'+({users:1,set:2,prod:3}[tab])).className='on';
  if(tab=='users'){
   $('#tb').innerHTML=`<select id=f>${['pending','approved','rejected','disabled','all'].map(x=>`<option ${x==filter?'selected':''} value=${x}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select><div id=ul></div>`;
   $('#f').onchange=e=>{filter=e.target.value;drawUsers()};
   unsubs.push(db.collection('users').orderBy('createdAt','desc').onSnapshot(s=>{USERS=s.docs.map(d=>({id:d.id,...d.data()}));drawUsers()}));
- }else settingsView();
+ }else if(tab=='prod')productsView($('#tb'));else settingsView();
 }
 function drawUsers(){
  const ul=$('#ul');if(!ul)return;
