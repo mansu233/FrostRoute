@@ -53,6 +53,7 @@ function memberCust(){NAVK='cust';R(header()+'<div class=wrap id=cw></div>');syn
 function memberProducts(){NAVK='prod';R(header()+'<div class=wrap id=pw></div>');syncDot();productsView($('#pw'),true)}
 firebase.initializeApp(firebaseConfig);
 const auth=firebase.auth(),db=firebase.firestore();
+db.settings({experimentalAutoDetectLongPolling:true});
 db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
 const $=s=>document.querySelector(s),app=$('#app'),R=h=>app.innerHTML=h;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -93,7 +94,8 @@ auth.onAuthStateChanged(u=>{
  setTimeout(()=>{if(U&&U.uid==u.uid&&!ME)problemView('Still loading','The app could not load your account within 10 seconds. Check the internet connection (airplane mode off), then try again.')},10000);
  unsubs.push(db.doc('settings/app').onSnapshot(s=>{CFG={...DEFAULTS,...(s.data()||{})};window.annDraw&&annDraw();applyFont()},()=>{}));
 });
-function problemView(t,m){R(`<div class=box><h1>${t}</h1><p class=mu>${m}</p><p class=mu>Account ID:<br><b style="word-break:break-all;color:var(--tx)">${U?U.uid:''}</b><br>${U?esc(U.email):''}</p><button class=b onclick="location.reload()">Try again</button><button class="b ghost" onclick="auth.signOut()">Sign out</button></div>`)}
+function problemView(t,m){R(`<div class=box><h1>${t}</h1><p class=mu>${m}</p><p class=mu>Account ID:<br><b style="word-break:break-all;color:var(--tx)">${U?U.uid:''}</b><br>${U?esc(U.email):''}</p><button class=b onclick="location.reload()">Try again</button><button class="b ghost" onclick="auth.signOut()">Sign out</button><button class="b ghost" onclick="resetLocal()">Reset saved data on this phone</button></div>`)}
+async function resetLocal(){if(!confirm('This clears the saved copy of data on this phone and downloads it again. Anything not yet synced is lost. Continue?'))return;try{await db.terminate();await db.clearPersistence()}catch(e){}location.reload()}
 function hasPin(){try{return JSON.parse(localStorage.getItem(K())).v===(ME.pinReset||0)}catch(e){return false}}
 function route(){
  if(!U)return;
