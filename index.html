@@ -32,6 +32,7 @@ input,select{width:100%;padding:12px;margin:5px 0;border:1px solid var(--bd);bor
 <script src="customers.js"></script>
 <script src="orders.js"></script>
 <script src="cash.js"></script>
+<script src="extras.js"></script>
 <script>
 document.title=APP.name;
 function memberOrders(){R(header()+'<div class=wrap id=ww></div>');syncDot();ordersHome($('#ww'),true)}
@@ -92,6 +93,7 @@ function route(){
  if(!hasPin())return pinView(true);
  if(!unlocked)return pinView(false);
  ME.role=='admin'?adminView():memberView();
+ startNearby();
 }
 document.addEventListener('visibilitychange',()=>{
  if(document.hidden)hiddenAt=ts();

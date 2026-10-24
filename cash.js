@@ -5,7 +5,7 @@ function loadCash(){
  loadData();
  if(!cUnsub)cUnsub=db.collection('customers').onSnapshot(s=>{CUST=s.docs.map(d=>({id:d.id,...d.data()}));drawCust()},()=>{cUnsub=null});
  if(cashUn)return;cashUn=true;const own=c=>ME.role=='admin'?db.collection(c):db.collection(c).where('uid','==',U.uid);
- [['payments',x=>PAY=x],['returns',x=>RET=x],['expenses',x=>EXP=x],['closings',x=>CLS=x]].forEach(([n,f])=>own(n).onSnapshot(s=>{f(s.docs.map(d=>({id:d.id,...d.data()})));window.cashRedraw&&$('#cw2')&&cashRedraw()},()=>{cashUn=false}));
+ [['payments',x=>PAY=x],['returns',x=>RET=x],['expenses',x=>EXP=x],['closings',x=>CLS=x]].forEach(([n,f])=>own(n).onSnapshot(s=>{f(s.docs.map(d=>({id:d.id,...d.data()})));window.cashRedraw&&$('#cw2')&&cashRedraw();$('#cb')&&drawCust()},()=>{cashUn=false}));
 }
 function calc(uid,day){
  const o=ORDS.filter(x=>x.uid==uid&&x.status!='cancelled'&&isoD(x.at)==day),cash=sum(o.filter(x=>x.pay=='cash'),'total'),credit=sum(o.filter(x=>x.pay=='credit'),'total'),

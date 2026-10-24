@@ -43,15 +43,15 @@ function dueToday(c){
 /* ---- main view ---- */
 function customersView(el,member){
  el.innerHTML=`${member?'<button class="b s ghost" onclick="sig=\'\';route()">Back</button>':''}
- <div class=tabs>${['today','all','rem'].map(k=>`<button data-t=${k} class="${CV.tab==k?'on':''}">${{today:'Today',all:'All customers',rem:'Reminders'}[k]}</button>`).join('')}</div>
+ <div class=tabs>${['today','all','rem',...(member&&!(ME.perms&&ME.perms.viewRanking)?[]:['rank'])].map(k=>`<button data-t=${k} class="${CV.tab==k?'on':''}">${{today:'Today',all:'All customers',rem:'Reminders',rank:'Ranking'}[k]}</button>`).join('')}</div>
  <div id=cb></div>`;
  el.querySelector('.tabs').onclick=e=>{if(e.target.dataset.t){CV.tab=e.target.dataset.t;customersView(el,member)}};
- if(!cUnsub)cUnsub=db.collection('customers').onSnapshot(s=>{CUST=s.docs.map(d=>({id:d.id,...d.data()}));drawCust()},()=>{cUnsub=null});
+ loadCash();
  if(!rUnsub)rUnsub=db.collection('reminders').onSnapshot(s=>{REM=s.docs.map(d=>({id:d.id,...d.data()}));drawCust()},()=>{rUnsub=null});
  drawCust();
 }
 function drawCust(){
- const b=$('#cb');if(!b)return;const admin=ME.role=='admin';
+ const b=$('#cb');if(!b)return;const admin=ME.role=='admin';if(CV.tab=='rank')return rankView(b);
  if(CV.tab=='rem'){const a=REM.filter(r=>!r.done).sort((x,y)=>(x.due||'').localeCompare(y.due||''));
   b.innerHTML=a.length?a.map(r=>`<div class=card><b>${esc(r.cname)}</b><div>${esc(r.text)}</div><div class=mu>Due ${esc(r.due||'next visit')}</div><button class="b s grn" data-a=rdone data-id=${r.id}>Done</button></div>`).join(''):'<div class=card>No open reminders.</div>';
   b.onclick=async e=>{if(e.target.dataset.a=='rdone')await db.doc('reminders/'+e.target.dataset.id).update({done:true})};return}
@@ -65,29 +65,23 @@ function drawCust(){
  <p class=mu>${a.length} customers${CV.tab=='today'?' planned for today':''}</p>`+a.map(c=>{const rc=REM.filter(r=>r.cid==c.id&&!r.done).length;
  return `<div class=card><b>${esc(c.nameEn||'')}</b> <span dir=rtl>${esc(c.nameAr||'')}</span>
  <div class=mu>${esc(c.address||'')}${c.sup?', supervisor '+esc(c.sup):''}${c._d<1e9?', '+(c._d>999?(c._d/1000).toFixed(1)+' km':c._d+' m'):''}</div><div class=mu>${esc(c.phone||'')} ${c.code?'Code '+esc(c.code):''}</div>
- ${c.lat?'':'<span class="tag pending">No location</span> '}${c.lead?'<span class="tag admin">Lead</span> ':''}${rc?`<span class="tag rejected">${rc} reminder${rc>1?'s':''}</span> `:''}
+ ${c.lat?'':'<span class="tag pending">No location</span> '}${c.lead?'<span class="tag admin">Lead</span> ':''}${custBal(c.id)>0?`<span class="tag rejected">Due ${money(custBal(c.id))}</span> `:''}${rc?`<span class="tag rejected">${rc} reminder${rc>1?'s':''}</span> `:''}
  <span class=mu>${c.visitType=='monthly'?'Monthly':DAYS[c.day]||''}${c.visitType=='skip'?' (skip a week when set)':''}${c.lastVisit?', last visit '+c.lastVisit:''}${admin&&c.ownerName?', '+esc(c.ownerName):''}</span><div>
  <button class="b s grn" data-a=in data-id=${c.id}>Check in</button><button class="b s ghost" data-a=nav data-id=${c.id}>Navigate</button>
  <a class="b s ghost" style="display:inline-block;text-decoration:none" href="tel:${esc(c.phone)}">Call</a><a class="b s ghost" style="display:inline-block;text-decoration:none" href="https://wa.me/${c.phone?'966'+c.phone.slice(1):''}">WhatsApp</a>
  <button class="b s ghost" data-a=rem data-id=${c.id}>Reminder</button><button class="b s ghost" data-a=today data-id=${c.id}>Random visit today</button>
- <button class="b s ghost" data-a=skip data-id=${c.id}>Skip next week</button><button class="b s ghost" data-a=edit data-id=${c.id}>Edit</button></div>
+ <button class="b s ghost" data-a=skip data-id=${c.id}>Skip next week</button><button class="b s ghost" data-a=prof data-id=${c.id}>Profile</button><button class="b s ghost" data-a=edit data-id=${c.id}>Edit</button></div>
  ${admin||(ME.perms&&ME.perms.createOrders)?`<div><button class="b s" data-a=shelf data-id=${c.id}>Shelf Check</button><button class="b s" data-a=order data-id=${c.id}>New order</button></div>`:''}
  <div>${admin||(ME.perms&&ME.perms.collectPayments)?`<button class="b s grn" data-a=pay data-id=${c.id}>Collect payment</button>`:''}${admin||(ME.perms&&ME.perms.makeReturns)?`<button class="b s red" data-a=ret data-id=${c.id}>Return</button>`:''}</div></div>`}).join('');
  $('#cq').oninput=e=>{CV.q=e.target.value;const p=e.target.selectionStart;drawCust();const n=$('#cq');n.focus();n.setSelectionRange(p,p)};
  $('#cn').onclick=async()=>{try{CV.pos=await getPos();drawCust()}catch(x){alert('Turn on GPS and allow location for this site.')}};
  b.onclick=async e=>{const d=e.target.dataset,c=CUST.find(x=>x.id==d.id);if(!d.a)return;
-  if(d.a=='new')return custForm({});if(d.a=='shelf')return shelfStart(c);if(d.a=='order')return orderStart(c);if(d.a=='pay')return collectPay(c);if(d.a=='ret')return returnStart(c);if(d.a=='edit')return custForm(c);
+  if(d.a=='new')return custForm({});if(d.a=='prof')return profileView(c);if(d.a=='shelf')return shelfStart(c);if(d.a=='order')return orderStart(c);if(d.a=='pay')return collectPay(c);if(d.a=='ret')return returnStart(c);if(d.a=='edit')return custForm(c);
   if(d.a=='nav')return c.lat?open(`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`):alert('No saved location. Check in at the shop to save it.');
   if(d.a=='today')return db.doc('customers/'+c.id).update({extraDate:todayD()});
   if(d.a=='skip'){const n=new Date();n.setDate(n.getDate()+((c.day-n.getDay()+7)%7||7));await db.doc('customers/'+c.id).update({skipDate:isoD(+n)});return alert('Skipped on '+isoD(+n)+'. The weekly plan returns after that.')}
   if(d.a=='rem'){const t=prompt('Reminder for '+c.nameEn+' (e.g. get stamp for bill, bring product)');if(t)await db.collection('reminders').add({cid:c.id,cname:c.nameEn||c.nameAr,uid:U.uid,text:t,due:todayD(),done:false,at:Date.now()})}
-  if(d.a=='in'){try{const p=await getPos();let dist=null,ok=false;
-   if(c.lat){dist=hav(p.lat,p.lng,c.lat,c.lng);ok=dist<=CFG.gpsRadius}
-   else if(confirm('This shop has no saved location. Save your current position as the shop location?'))await db.doc('customers/'+c.id).update({lat:p.lat,lng:p.lng,acc:p.acc});
-   await db.collection('visits').add({cid:c.id,cname:c.nameEn||c.nameAr,uid:U.uid,at:Date.now(),lat:p.lat,lng:p.lng,dist,verified:ok});
-   await db.doc('customers/'+c.id).update({lastVisit:todayD(),lead:false});
-   const r=REM.filter(x=>x.cid==c.id&&!x.done).map(x=>x.text);
-   alert((dist==null?'Checked in. Location saved.':ok?'Verified, '+dist+' m from the shop.':'Not at shop, '+dist+' m away (warning only).')+(r.length?'\nReminders:\n- '+r.join('\n- '):''))}catch(x){alert('GPS unavailable. Check-in not saved. Turn on location.')}}
+  if(d.a=='in')return checkIn(c);
  };
 }
 /* ---- add / edit form ---- */
@@ -128,3 +122,11 @@ async function custForm(c){
   try{await(c.id?db.doc('customers/'+c.id).update(d):db.collection('customers').add(d));m.remove()}catch(x){er(x.message)}
  };
 }
+
+async function checkIn(c){try{const p=await getPos();let dist=null,ok=false;
+   if(c.lat){dist=hav(p.lat,p.lng,c.lat,c.lng);ok=dist<=CFG.gpsRadius}
+   else if(confirm('This shop has no saved location. Save your current position as the shop location?'))await db.doc('customers/'+c.id).update({lat:p.lat,lng:p.lng,acc:p.acc});
+   await db.collection('visits').add({cid:c.id,cname:c.nameEn||c.nameAr,uid:U.uid,at:Date.now(),lat:p.lat,lng:p.lng,dist,verified:ok});
+   await db.doc('customers/'+c.id).update({lastVisit:todayD(),lead:false});
+   const r=REM.filter(x=>x.cid==c.id&&!x.done).map(x=>x.text);
+   alert((dist==null?'Checked in. Location saved.':ok?'Verified, '+dist+' m from the shop.':'Not at shop, '+dist+' m away (warning only).')+(r.length?'\nReminders:\n- '+r.join('\n- '):''))}catch(x){alert('GPS unavailable. Check-in not saved. Turn on location.')}}

@@ -1,6 +1,6 @@
 // ONE place to rename the app or change the version.
 // Every update: raise APP.version (the service worker reads this file, so phones refresh automatically).
-const APP = { name: "FrostRoute", version: "0.5.0", date: "2026-10-24" };
+const APP = { name: "FrostRoute", version: "0.6.0", date: "2026-10-24" };
 
 // Paste your Firebase web app config (Firebase console > Project settings > Your apps)
 const firebaseConfig = {
@@ -16,11 +16,11 @@ const firebaseConfig = {
 const DEFAULTS = {
   vatPercent: 15, pinLockSeconds: 90, passwordDays: 30,
   gpsRadius: 150, checkinMode: "warn", loadBuffer: 10,
-  dailyVisitLimit: 20, manualTotal: 0, scanDuplicate: "highlight"
+  dailyVisitLimit: 20, manualTotal: 0, dormantDays: 45, scanDuplicate: "highlight"
 };
 const SETTING_LABELS = {
   vatPercent: "VAT %", pinLockSeconds: "Ask PIN after background (seconds)", passwordDays: "Ask email password again after (days)",
-  gpsRadius: "GPS check-in distance (m)", loadBuffer: "Load list buffer %", dailyVisitLimit: "Daily visit limit", manualTotal: "Allow typed cash total without counter (1 = yes)"
+  gpsRadius: "GPS check-in distance (m)", loadBuffer: "Load list buffer %", dailyVisitLimit: "Daily visit limit", dormantDays: "Dormant customer after (days without order)", manualTotal: "Allow typed cash total without counter (1 = yes)"
 };
 
 // Every permission is OFF for members until the admin switches it on.
