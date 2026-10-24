@@ -4,10 +4,10 @@ const APP = { name: "FrostRoute", version: "0.1.0", date: "2026-10-24" };
 
 // Paste your Firebase web app config (Firebase console > Project settings > Your apps)
 const firebaseConfig = {
-  apiKey: "PASTE_API_KEY",
-  authDomain: "PASTE_PROJECT.firebaseapp.com",
-  projectId: "PASTE_PROJECT_ID",
-  appId: "PASTE_APP_ID"
+  apiKey: "AlzaSyBCh9FE6wrLYEVvhLew_YVpGbmGG0nLr2Q",
+  authDomain: "frostroute-a6983.firebaseapp.com",
+  projectId: "126874365711",
+  appId: "1:126874365711:web:8f1f1a6c68e14e2fde187a"
 };
 
 // Admin settings (saved in Firestore settings/app). Members cannot change them.
