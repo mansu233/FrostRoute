@@ -87,9 +87,13 @@ function loginView(mode='in',msg=''){
 auth.onAuthStateChanged(u=>{
  unsubs.forEach(f=>f());unsubs=[];U=u;ME=null;unlocked=false;sig='';
  if(!u)return loginView();
- unsubs.push(db.doc('users/'+u.uid).onSnapshot(s=>{ME=s.exists?s.data():null;route()},()=>{}));
+ unsubs.push(db.doc('users/'+u.uid).onSnapshot(s=>{
+  if(!s.exists){if(s.metadata.fromCache)return;ME=null;return problemView('Account record not found','Sign-in worked, but the app cannot find your account record in the database. Check Firestore, users collection, for a document with the account ID below.')}
+  ME=s.data();route()},e=>problemView('Cannot load your account','Reason: '+esc(e.code||e.message)+'. Check the internet connection and that the Firestore rules are published.')));
+ setTimeout(()=>{if(U&&U.uid==u.uid&&!ME)problemView('Still loading','The app could not load your account within 10 seconds. Check the internet connection (airplane mode off), then try again.')},10000);
  unsubs.push(db.doc('settings/app').onSnapshot(s=>{CFG={...DEFAULTS,...(s.data()||{})};window.annDraw&&annDraw();applyFont()},()=>{}));
 });
+function problemView(t,m){R(`<div class=box><h1>${t}</h1><p class=mu>${m}</p><p class=mu>Account ID:<br><b style="word-break:break-all;color:var(--tx)">${U?U.uid:''}</b><br>${U?esc(U.email):''}</p><button class=b onclick="location.reload()">Try again</button><button class="b ghost" onclick="auth.signOut()">Sign out</button></div>`)}
 function hasPin(){try{return JSON.parse(localStorage.getItem(K())).v===(ME.pinReset||0)}catch(e){return false}}
 function route(){
  if(!U)return;
