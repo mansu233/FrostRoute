@@ -15,7 +15,7 @@ input,select{width:100%;padding:12px;margin:5px 0;border:1px solid var(--bd);bor
 .b.ghost{background:none;color:var(--pr);border:1px solid var(--bd)}.b.s{width:auto;padding:7px 12px;margin:3px 3px 0 0;font-size:13px}.b.red{background:var(--rd)}.b.grn{background:var(--gr)}
 .top{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--pr);color:#fff;position:sticky;top:0;z-index:5}
 .top b{font-size:17px}.top small{opacity:.8;margin-left:4px}.top .sp{flex:1}.top button{background:rgba(255,255,255,.18);border:0;color:#fff;border-radius:6px;padding:6px 10px}
-.tabs{display:flex;gap:6px;margin:10px 0}.tabs button{flex:1;padding:9px 2px;font-size:13px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);font:inherit}.tabs .on{background:var(--pr);color:#fff;border-color:var(--pr)}
+.tabs{display:flex;gap:6px;margin:10px 0;overflow-x:auto}.tabs button{flex:1 0 auto;padding:9px 12px;font-size:13px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);font:inherit}.tabs .on{background:var(--pr);color:#fff;border-color:var(--pr)}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin:8px 0}
 .tag{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;color:#fff}.pending{background:var(--pk)}.approved{background:var(--gr)}.rejected,.disabled{background:var(--rd)}.admin{background:var(--pr)}
 .perm{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:14px}.perm input{width:20px;margin:0}
@@ -31,9 +31,12 @@ input,select{width:100%;padding:12px;margin:5px 0;border:1px solid var(--bd);bor
 <script src="products.js"></script>
 <script src="customers.js"></script>
 <script src="orders.js"></script>
+<script src="cash.js"></script>
 <script>
 document.title=APP.name;
 function memberOrders(){R(header()+'<div class=wrap id=ww></div>');syncDot();ordersHome($('#ww'),true)}
+function memberClose(){R(header()+'<div class=wrap id=xw></div>');syncDot();closingView($('#xw'),true)}
+function memberLoad(){R(header()+'<div class=wrap id=xw></div>');syncDot();loadListView($('#xw'),true)}
 function memberCust(){R(header()+'<div class=wrap id=cw></div>');syncDot();customersView($('#cw'),true)}
 function memberProducts(){R(header()+'<div class=wrap id=pw></div>');syncDot();productsView($('#pw'),true)}
 firebase.initializeApp(firebaseConfig);
@@ -127,21 +130,21 @@ addEventListener('online',syncDot);addEventListener('offline',syncDot);
 function memberView(){
  const on=Object.keys(PERMS).filter(k=>ME.perms&&ME.perms[k]);
  R(header()+`<div class=wrap><h2>Hello ${esc(ME.name)}</h2><p class=mu>Branch: ${esc(ME.branch||'not set')}</p>
- ${on.length?`<div class=grid>${on.map(k=>k=='viewProducts'?`<div class=tile onclick="memberProducts()" style="cursor:pointer;border-color:var(--pr)"><b>Products</b><div class=mu>Search, scan, prices</div></div>`:k=='manageCustomers'?`<div class=tile onclick="memberCust()" style="cursor:pointer;border-color:var(--pr)"><b>Customers</b><div class=mu>Today's visits, search, reminders</div></div>`:k=='createOrders'?`<div class=tile onclick="memberOrders()" style="cursor:pointer;border-color:var(--pr)"><b>Orders</b><div class=mu>New order, history</div></div>`:k=='visitPlan'?'':`<div class=tile>${PERMS[k]}<div class=mu>Coming in a later phase</div></div>`).join('')}</div>`
+ ${on.length?`<div class=grid>${on.map(k=>k=='viewProducts'?`<div class=tile onclick="memberProducts()" style="cursor:pointer;border-color:var(--pr)"><b>Products</b><div class=mu>Search, scan, prices</div></div>`:k=='manageCustomers'?`<div class=tile onclick="memberCust()" style="cursor:pointer;border-color:var(--pr)"><b>Customers</b><div class=mu>Today's visits, search, reminders</div></div>`:k=='createOrders'?`<div class=tile onclick="memberOrders()" style="cursor:pointer;border-color:var(--pr)"><b>Orders</b><div class=mu>New order, history</div></div>`:k=='dayClosing'?`<div class=tile onclick="memberClose()" style="cursor:pointer;border-color:var(--pr)"><b>Day closing</b><div class=mu>Cash, expenses, money counter</div></div>`:k=='loadList'?`<div class=tile onclick="memberLoad()" style="cursor:pointer;border-color:var(--pr)"><b>Load list</b><div class=mu>Tomorrow's vehicle load</div></div>`:['visitPlan','collectPayments','makeReturns','moneyCounter'].includes(k)?'':`<div class=tile>${PERMS[k]}<div class=mu>Coming in a later phase</div></div>`).join('')}</div>`
  :'<div class=card>No features are switched on for you yet. Ask the admin to give access.</div>'}</div>`);
  syncDot();
 }
 
 /* ---------- admin panel ---------- */
 function adminView(){
- R(header()+`<div class=wrap><div class=tabs><button id=t1>Users</button><button id=t3>Products</button><button id=t4>Customers</button><button id=t5>Orders</button><button id=t2>Settings</button></div><div id=tb></div></div>`);
- syncDot();$('#t1').onclick=()=>{tab='users';adminView()};$('#t2').onclick=()=>{tab='set';adminView()};$('#t3').onclick=()=>{tab='prod';adminView()};$('#t4').onclick=()=>{tab='cust';adminView()};$('#t5').onclick=()=>{tab='ord';adminView()};
- $('#t'+({users:1,set:2,prod:3,cust:4,ord:5}[tab])).className='on';
+ R(header()+`<div class=wrap><div class=tabs><button id=t1>Users</button><button id=t3>Products</button><button id=t4>Customers</button><button id=t5>Orders</button><button id=t6>Cash</button><button id=t2>Settings</button></div><div id=tb></div></div>`);
+ syncDot();$('#t1').onclick=()=>{tab='users';adminView()};$('#t2').onclick=()=>{tab='set';adminView()};$('#t3').onclick=()=>{tab='prod';adminView()};$('#t4').onclick=()=>{tab='cust';adminView()};$('#t5').onclick=()=>{tab='ord';adminView()};$('#t6').onclick=()=>{tab='cash';adminView()};
+ $('#t'+({users:1,set:2,prod:3,cust:4,ord:5,cash:6}[tab])).className='on';
  if(tab=='users'){
   $('#tb').innerHTML=`<select id=f>${['pending','approved','rejected','disabled','all'].map(x=>`<option ${x==filter?'selected':''} value=${x}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select><div id=ul></div>`;
   $('#f').onchange=e=>{filter=e.target.value;drawUsers()};
   unsubs.push(db.collection('users').orderBy('createdAt','desc').onSnapshot(s=>{USERS=s.docs.map(d=>({id:d.id,...d.data()}));drawUsers()}));
- }else if(tab=='prod')productsView($('#tb'));else if(tab=='cust')customersView($('#tb'));else if(tab=='ord')ordersHome($('#tb'));else settingsView();
+ }else if(tab=='prod')productsView($('#tb'));else if(tab=='cust')customersView($('#tb'));else if(tab=='ord')ordersHome($('#tb'));else if(tab=='cash')cashAdmin($('#tb'));else settingsView();
 }
 function drawUsers(){
  const ul=$('#ul');if(!ul)return;
