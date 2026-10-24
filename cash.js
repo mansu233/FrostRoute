@@ -5,7 +5,7 @@ function loadCash(){
  loadData();
  if(!cUnsub)cUnsub=db.collection('customers').onSnapshot(s=>{CUST=s.docs.map(d=>({id:d.id,...d.data()}));drawCust()},()=>{cUnsub=null});
  if(cashUn)return;cashUn=true;const own=c=>ME.role=='admin'?db.collection(c):db.collection(c).where('uid','==',U.uid);
- [['payments',x=>PAY=x],['returns',x=>RET=x],['expenses',x=>EXP=x],['closings',x=>CLS=x]].forEach(([n,f])=>own(n).onSnapshot(s=>{f(s.docs.map(d=>({id:d.id,...d.data()})));window.cashRedraw&&$('#cw2')&&cashRedraw();$('#cb')&&drawCust()},()=>{cashUn=false}));
+ [['payments',x=>PAY=x],['returns',x=>RET=x],['expenses',x=>EXP=x],['closings',x=>CLS=x]].forEach(([n,f])=>own(n).onSnapshot(s=>{f(s.docs.map(d=>({id:d.id,...d.data()})));window.cashRedraw&&$('#cw2')&&cashRedraw();$('#cb')&&drawCust();window.tgDraw&&tgDraw()},()=>{cashUn=false}));
 }
 function calc(uid,day){
  const o=ORDS.filter(x=>x.uid==uid&&x.status!='cancelled'&&isoD(x.at)==day),cash=sum(o.filter(x=>x.pay=='cash'),'total'),credit=sum(o.filter(x=>x.pay=='credit'),'total'),
@@ -16,6 +16,7 @@ function calc(uid,day){
 }
 /* ---- collect payment (from customer card) ---- */
 async function collectPay(c){
+ if(dayLocked())return;
  const a=+dg(prompt('Amount received from '+c.nameEn)||'').replace(/[^\d.]/g,'');if(!a)return;
  const m=confirm('OK = Cash\nCancel = Bank / card / transfer')?'cash':'bank';
  await db.collection('payments').add({cid:c.id,cname:c.nameEn,uid:U.uid,by:ME.name,amount:a,method:m,at:Date.now(),day:todayD()});alert('Payment saved: '+money(a)+' ('+m+')');
@@ -36,7 +37,7 @@ function retView(){
  $('#rres').onclick=e=>{const c=e.target.closest('[data-p]');if(c){RT.lines.push(mkLine(PRODS.find(p=>p.id==c.dataset.p),'pcs',1));retView()}};
  m.onchange=e=>{const d=e.target.dataset;if(d.a=='qty'){RT.lines[d.i].qty=Math.max(1,Math.round(+e.target.value)||1);return retView()}if(e.target.id=='rrs')RT.reason=e.target.value;if(e.target.id=='rrf')RT.refund=e.target.value};
  m.onclick=e=>{const d=e.target.dataset,l=RT.lines[d.i];if(d.a=='del'){RT.lines.splice(d.i,1);retView()}if(d.a=='unit'){const p=PRODS.find(x=>x.id==l.pid),av=avail(p),n=av[(av.indexOf(l.unit)+1)%av.length];l.unit=n;l.rate=+(p.rate*pu(p,n)).toFixed(2);retView()}};
- $('#rsv').onclick=async()=>{if(!RT.lines.length)return alert('Add at least one product.');const n=(+localStorage.getItem('retn_'+U.uid)||0)+1,no='R'+ME.name.replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase()+n;
+ $('#rsv').onclick=async()=>{if(dayLocked())return;if(!RT.lines.length)return alert('Add at least one product.');const n=(+localStorage.getItem('retn_'+U.uid)||0)+1,no='R'+ME.name.replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase()+n;
   const o={no,cid:RT.c.id,cname:RT.c.nameEn,lines:RT.lines.map(l=>({pid:l.pid,name:l.name,unit:l.unit,qty:l.qty,rate:l.rate})),sub,vatPct:vp,total:+tot.toFixed(2),reason:RT.reason,refund:RT.refund,uid:U.uid,by:ME.name,at:Date.now(),day:todayD(),status:'saved'};
   db.collection('returns').add(o);localStorage.setItem('retn_'+U.uid,n);closeOv();
   const t=`*RETURN #${no}* – ${new Date().toLocaleDateString('en-GB')}\nCustomer: ${o.cname}\n`+o.lines.map((l,i)=>`${i+1}. ${l.name} – ${l.qty} ${l.unit} × ${money(l.rate)} = ${money(l.qty*l.rate)}`).join('\n')+`\nReason: ${o.reason}\n*TOTAL: ${money(o.total)}* (${o.refund})\nBy: ${o.by}`;
@@ -61,7 +62,7 @@ function closingView(el,member){
  <input id=cnt placeholder="Note (needed if there is a difference)"><button class=b id=csb>Submit closing</button></div>`}</div>`;
  const dd=$('#cwa');if(dd)dd.onclick=()=>open('https://wa.me/?text='+encodeURIComponent(`*CASH COUNT* – ${new Date().toLocaleDateString('en-GB')} – ${ME.name}\n`+DENOMS.filter(d=>CNT[d]).map(d=>`${d} × ${CNT[d]} = ${money(d*CNT[d])}`).join('\n')+`\n*TOTAL: ${money(tot)}*`));
  if($('#ccl'))$('#ccl').onclick=()=>{if(confirm('Clear all counts?')){CNT={};closingView(el,member)}};
- if($('#cex'))$('#cex').onclick=async()=>{const a=+dg(prompt('Expense amount')||'').replace(/[^\d.]/g,'');if(!a)return;await db.collection('expenses').add({uid:U.uid,by:ME.name,amount:a,note:prompt('What for? (fuel, parking...)')||'',at:Date.now(),day})};
+ if($('#cex'))$('#cex').onclick=async()=>{if(dayLocked())return;const a=+dg(prompt('Expense amount')||'').replace(/[^\d.]/g,'');if(!a)return;await db.collection('expenses').add({uid:U.uid,by:ME.name,amount:a,note:prompt('What for? (fuel, parking...)')||'',at:Date.now(),day})};
  el.onclick=e=>{const d=e.target.dataset;if(d.s){CNT[d.d]=Math.max(0,(CNT[d.d]||0)+ +d.s);closingView(el,member)}};
  el.onchange=e=>{const d=e.target.dataset;if(d.d){CNT[d.d]=Math.max(0,Math.round(+e.target.value)||0);closingView(el,member)}if(e.target.id=='cmn'){CNT.manual=e.target.value;closingView(el,member)}};
  if($('#csb'))$('#csb').onclick=async()=>{const note=$('#cnt').value.trim(),counted=CNT.manual!==undefined&&CNT.manual!==''?+CNT.manual:tot,diff=Math.round((counted-hand)*100)/100;
@@ -99,5 +100,5 @@ async function reportsView(el){
  el.onclick=async e=>{const d=e.target.dataset;if(d.a=='rcv')await db.doc('closings/'+d.id).update({status:'received',receivedAt:Date.now()});if(d.a=='reopen'&&confirm('Reopen this closing? The salesman can submit again.'))await db.doc('closings/'+d.id).delete()}};
  window.cashRedraw=draw;draw();
 }
-function cashAdmin(el){el.innerHTML=`<div class=tabs><button data-k=c>My closing</button><button data-k=r>Reports</button><button data-k=l>Load list</button></div><div id=cs></div>`;
- const go=k=>{const b=$('#cs');k=='c'?closingView(b):k=='r'?reportsView(b):loadListView(b)};el.querySelector('.tabs').onclick=e=>e.target.dataset.k&&go(e.target.dataset.k);go('r')}
+function cashAdmin(el){el.innerHTML=`<div class=tabs><button data-k=c>My closing</button><button data-k=r>Reports</button><button data-k=l>Load list</button><button data-k=e>Export</button></div><div id=cs></div>`;
+ const go=k=>{const b=$('#cs');k=='c'?closingView(b):k=='r'?reportsView(b):k=='e'?exportView(b):loadListView(b)};el.querySelector('.tabs').onclick=e=>e.target.dataset.k&&go(e.target.dataset.k);go('r')}

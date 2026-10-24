@@ -33,6 +33,7 @@ input,select{width:100%;padding:12px;margin:5px 0;border:1px solid var(--bd);bor
 <script src="orders.js"></script>
 <script src="cash.js"></script>
 <script src="extras.js"></script>
+<script src="admin.js"></script>
 <script>
 document.title=APP.name;
 function memberOrders(){R(header()+'<div class=wrap id=ww></div>');syncDot();ordersHome($('#ww'),true)}
@@ -77,7 +78,7 @@ auth.onAuthStateChanged(u=>{
  unsubs.forEach(f=>f());unsubs=[];U=u;ME=null;unlocked=false;sig='';
  if(!u)return loginView();
  unsubs.push(db.doc('users/'+u.uid).onSnapshot(s=>{ME=s.exists?s.data():null;route()},()=>{}));
- unsubs.push(db.doc('settings/app').onSnapshot(s=>{CFG={...DEFAULTS,...(s.data()||{})}},()=>{}));
+ unsubs.push(db.doc('settings/app').onSnapshot(s=>{CFG={...DEFAULTS,...(s.data()||{})};window.annDraw&&annDraw()},()=>{}));
 });
 function hasPin(){try{return JSON.parse(localStorage.getItem(K())).v===(ME.pinReset||0)}catch(e){return false}}
 function route(){
@@ -131,16 +132,16 @@ addEventListener('online',syncDot);addEventListener('offline',syncDot);
 /* ---------- member home ---------- */
 function memberView(){
  const on=Object.keys(PERMS).filter(k=>ME.perms&&ME.perms[k]);
- R(header()+`<div class=wrap><h2>Hello ${esc(ME.name)}</h2><p class=mu>Branch: ${esc(ME.branch||'not set')}</p>
+ R(header()+`<div class=wrap><h2>Hello ${esc(ME.name)}</h2><p class=mu>Branch: ${esc(ME.branch||'not set')}</p><div id=ann></div><div id=tg></div>
  ${on.length?`<div class=grid>${on.map(k=>k=='viewProducts'?`<div class=tile onclick="memberProducts()" style="cursor:pointer;border-color:var(--pr)"><b>Products</b><div class=mu>Search, scan, prices</div></div>`:k=='manageCustomers'?`<div class=tile onclick="memberCust()" style="cursor:pointer;border-color:var(--pr)"><b>Customers</b><div class=mu>Today's visits, search, reminders</div></div>`:k=='createOrders'?`<div class=tile onclick="memberOrders()" style="cursor:pointer;border-color:var(--pr)"><b>Orders</b><div class=mu>New order, history</div></div>`:k=='dayClosing'?`<div class=tile onclick="memberClose()" style="cursor:pointer;border-color:var(--pr)"><b>Day closing</b><div class=mu>Cash, expenses, money counter</div></div>`:k=='loadList'?`<div class=tile onclick="memberLoad()" style="cursor:pointer;border-color:var(--pr)"><b>Load list</b><div class=mu>Tomorrow's vehicle load</div></div>`:['visitPlan','collectPayments','makeReturns','moneyCounter'].includes(k)?'':`<div class=tile>${PERMS[k]}<div class=mu>Coming in a later phase</div></div>`).join('')}</div>`
  :'<div class=card>No features are switched on for you yet. Ask the admin to give access.</div>'}</div>`);
- syncDot();
+ syncDot();loadCash();tgDraw();annDraw();
 }
 
 /* ---------- admin panel ---------- */
 function adminView(){
- R(header()+`<div class=wrap><div class=tabs><button id=t1>Users</button><button id=t3>Products</button><button id=t4>Customers</button><button id=t5>Orders</button><button id=t6>Cash</button><button id=t2>Settings</button></div><div id=tb></div></div>`);
- syncDot();$('#t1').onclick=()=>{tab='users';adminView()};$('#t2').onclick=()=>{tab='set';adminView()};$('#t3').onclick=()=>{tab='prod';adminView()};$('#t4').onclick=()=>{tab='cust';adminView()};$('#t5').onclick=()=>{tab='ord';adminView()};$('#t6').onclick=()=>{tab='cash';adminView()};
+ R(header()+`<div class=wrap><div id=ann></div><div class=tabs><button id=t1>Users</button><button id=t3>Products</button><button id=t4>Customers</button><button id=t5>Orders</button><button id=t6>Cash</button><button id=t2>Settings</button></div><div id=tb></div></div>`);
+ syncDot();annDraw();$('#t1').onclick=()=>{tab='users';adminView()};$('#t2').onclick=()=>{tab='set';adminView()};$('#t3').onclick=()=>{tab='prod';adminView()};$('#t4').onclick=()=>{tab='cust';adminView()};$('#t5').onclick=()=>{tab='ord';adminView()};$('#t6').onclick=()=>{tab='cash';adminView()};
  $('#t'+({users:1,set:2,prod:3,cust:4,ord:5,cash:6}[tab])).className='on';
  if(tab=='users'){
   $('#tb').innerHTML=`<select id=f>${['pending','approved','rejected','disabled','all'].map(x=>`<option ${x==filter?'selected':''} value=${x}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select><div id=ul></div>`;
@@ -154,7 +155,7 @@ function drawUsers(){
  ul.innerHTML=L.length?L.map(u=>{const me=u.id==U.uid;return `<div class=card>
   <div class=row><h2 style="flex:1">${esc(u.name)}</h2><span class="tag ${u.status}">${u.status}</span>${u.role=='admin'?'<span class="tag admin">admin</span>':''}</div>
   <div class=mu>${esc(u.email)}</div>
-  <input placeholder="Branch (e.g. Riyadh, Jeddah)" value="${esc(u.branch)}" data-id=${u.id} data-act=branch>
+  <input placeholder="Branch (e.g. Riyadh, Jeddah)" value="${esc(u.branch)}" data-id=${u.id} data-act=branch><input type=number placeholder="Monthly sales target (with VAT)" value="${u.target||''}" data-id=${u.id} data-act=target>
   ${me?'':`<div>${u.status!='approved'?`<button class="b s grn" data-id=${u.id} data-act=approved>Approve</button>`:''}
   ${u.status=='pending'?`<button class="b s red" data-id=${u.id} data-act=rejected>Reject</button>`:''}
   ${u.status=='approved'?`<button class="b s red" data-id=${u.id} data-act=disabled>Disable</button>`:''}
@@ -174,13 +175,14 @@ document.addEventListener('click',async e=>{
 document.addEventListener('change',async e=>{
  const d=e.target.dataset;if(!d||!d.id)return;
  if(d.act=='perm')await db.doc('users/'+d.id).update({['perms.'+d.k]:e.target.checked});
+ if(d.act=='target')await db.doc('users/'+d.id).update({target:+e.target.value||0});
  if(d.act=='branch')await db.doc('users/'+d.id).update({branch:e.target.value.trim()});
 });
 function settingsView(){
  $('#tb').innerHTML=`<div class=card><h2>Settings (admin only)</h2>${Object.entries(SETTING_LABELS).map(([k,l])=>`<label class=mu>${l}</label><input type=number id=s_${k} value="${CFG[k]}">`).join('')}
- <button class=b id=sv>Save settings</button><p class=mu id=sm></p></div>
+ <label class=mu>Announcement (shown on every member's home screen, leave empty to hide)</label><textarea id=s_ann rows=3 style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);font:inherit">${esc(CFG.announcement||'')}</textarea><button class=b id=sv>Save settings</button><p class=mu id=sm></p></div>
  <div class=card><h2>About</h2><p class=mu>${esc(APP.name)} · version ${APP.version} · ${APP.date}</p></div>`;
- $('#sv').onclick=async()=>{const o={};for(const k in SETTING_LABELS)o[k]=+$('#s_'+k).value;await db.doc('settings/app').set(o,{merge:true});$('#sm').textContent='Saved.'};
+ $('#sv').onclick=async()=>{const o={};for(const k in SETTING_LABELS)o[k]=+$('#s_'+k).value;o.announcement=$('#s_ann').value.trim();await db.doc('settings/app').set(o,{merge:true});$('#sm').textContent='Saved.'};
 }
 
 /* ---------- service worker + auto reload on new version ---------- */

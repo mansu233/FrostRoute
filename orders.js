@@ -4,7 +4,7 @@ const canRate=()=>ME.role=='admin'||(ME.perms&&ME.perms.editRate),dKey=()=>'draf
 const saveD=()=>{try{localStorage.setItem(dKey(),JSON.stringify({...OD,sel:[],hl:[]}))}catch(e){}};
 const pu=(p,u)=>u=='pcs'?1:(p.units&&p.units[u]&&p.units[u].qty)||1;
 const avail=p=>['pcs',...['packet','carton'].filter(k=>p.units&&p.units[k]&&p.units[k].qty)];
-const odraw=()=>{typeof drawCust=='function'&&$('#cb')&&drawCust();return odrawX()};const odrawX=()=>OV?OV():(window.ordersRedraw&&$('#ow')&&ordersRedraw());
+const odraw=()=>{window.tgDraw&&tgDraw();typeof drawCust=='function'&&$('#cb')&&drawCust();return odrawX()};const odrawX=()=>OV?OV():(window.ordersRedraw&&$('#ow')&&ordersRedraw());
 function loadData(){
  if(!pUnsub)pUnsub=db.collection('products').onSnapshot(s=>{PRODS=s.docs.map(d=>({id:d.id,...d.data()}));drawProds();odraw()},()=>{pUnsub=null});
  if(!oUnsub){const c=db.collection('orders');oUnsub=(ME.role=='admin'?c:c.where('uid','==',U.uid)).onSnapshot(s=>{ORDS=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>b.at-a.at);odraw()},()=>{oUnsub=null})}
@@ -16,7 +16,7 @@ const mkLine=(p,unit,qty,st)=>({pid:p.id,sl:p.sl||'',name:p.name,unit,qty,rate:+
 const byCode=c=>{const p=PRODS.find(p=>(p.bcs||[]).includes(c));return p?{p,unit:['carton','packet','pcs'].find(k=>p.units&&p.units[k]&&p.units[k].bc==c)||'pcs'}:null};
 /* ---- entry points ---- */
 function ordersHome(el,member){
- loadData();OV=null;
+ loadCash();OV=null;
  const draft=localStorage.getItem(dKey()),dr=draft&&JSON.parse(draft);
  const draw=()=>{el.innerHTML=`${member?'<button class="b s ghost" onclick="sig=\'\';route()">Back</button>':''}
  <button class="b s" id=ow>New walk-in order</button>${dr&&dr.lines.length?'<button class="b s grn" id=or>Resume draft ('+dr.lines.length+' lines)</button>':''}
@@ -32,13 +32,13 @@ function ordersHome(el,member){
  window.ordersRedraw=draw;draw();
 }
 function orderStart(c,lines){
- loadData();const old=localStorage.getItem(dKey()),od=old&&JSON.parse(old);
+ loadCash();const old=localStorage.getItem(dKey()),od=old&&JSON.parse(old);
  if(!lines&&od&&od.lines.length&&c&&od.cust&&od.cust.id==c.id&&confirm('Continue the unsent draft for this customer?')){OD=od;return orderView()}
  OD={cust:c?{id:c.id,nameEn:c.nameEn,nameAr:c.nameAr,phone:c.phone}:null,walk:{name:'',phone:''},lines:lines||[],pay:'cash',note:'',budget:0,sel:[],hl:[]};saveD();orderView();
 }
 /* ---- Shelf Check ---- */
 function shelfStart(c){
- loadData();const s=stats(c.id),ids=Object.keys(s.cust).sort((a,b)=>s.cust[b].n-s.cust[a].n).slice(0,30);
+ loadCash();const s=stats(c.id),ids=Object.keys(s.cust).sort((a,b)=>s.cust[b].n-s.cust[a].n).slice(0,30);
  const list=ids.length?ids.map(i=>PRODS.find(p=>p.id==i)).filter(Boolean):PRODS.filter(p=>p.active!==false).sort((a,b)=>(s.fast[b.id]||0)-(s.fast[a.id]||0)||(a.sl||0)-(b.sl||0)).slice(0,40);
  SC={c,list,rows:{}};shelfView();
 }
@@ -56,7 +56,9 @@ function shelfView(){
   if(!SC.list.includes(p))SC.list.unshift(p);SC.rows[p.id]={st:'short'};shelfView();setTimeout(()=>{const e=$('#r_'+p.id);e&&e.scrollIntoView({block:'center'})},50)});
  m.onclick=e=>{const d=e.target.dataset;if(!d.a||!d.id||d.a=='left')return;SC.rows[d.id]=d.a=='ok'?{}:{st:d.a};shelfView()};
  m.onchange=e=>{const d=e.target.dataset;if(d.a=='left'){const v=e.target.value;SC.rows[d.id]={st:v!==''&&+v==0?'zero':'short',left:v};shelfView()}};
- $('#smk').onclick=()=>{const lines=[];SC.list.forEach(p=>{const r=SC.rows[p.id];if(!r||!r.st)return;const u=s.cust[p.id],avg=u?Math.max(1,Math.round(u.q/u.n)):1,unit=u&&avail(p).includes(u.unit)?u.unit:'pcs';
+ $('#smk').onclick=()=>{const miss=SC.list.filter(p=>(s.fast[p.id]||0)>=3&&!(SC.rows[p.id]&&SC.rows[p.id].st)).slice(0,8);
+  if(miss.length&&!SC.asked){SC.asked=1;return alert('Fast-moving items not checked yet:\n- '+miss.map(p=>p.name).join('\n- ')+'\n\nCheck them, or tap Create order again to continue.')}
+  const lines=[];SC.list.forEach(p=>{const r=SC.rows[p.id];if(!r||!r.st)return;const u=s.cust[p.id],avg=u?Math.max(1,Math.round(u.q/u.n)):1,unit=u&&avail(p).includes(u.unit)?u.unit:'pcs';
   const q=r.st=='zero'?avg:(r.left!==undefined&&r.left!==''?Math.max(1,avg-Math.round(+r.left)):Math.max(1,Math.ceil(avg/2)));lines.push(mkLine(p,unit,q,r.st))});
   if(!lines.length)return alert('Nothing marked Zero or Short.');const cu=SC.c;SC=null;orderStart(cu,lines);};
 }
@@ -112,6 +114,7 @@ function onScan(code){const f=byCode(bcn(code));if(!f)return alert('Product not 
  const same=OD.lines.some(l=>l.pid==f.p.id);addProd(f.p,f.unit)}
 /* ---- send + WhatsApp text ---- */
 async function sendOrder(sub,vat,tot,vp){
+ if(dayLocked())return;
  if(!OD.lines.length)return alert('Add at least one product.');
  const n=(+localStorage.getItem('ordn_'+U.uid)||0)+1,no=ME.name.replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase()+n,c=OD.cust;
  const o={no,cid:c?c.id:'',cname:c?c.nameEn:(OD.walk.name||'Walk-in'),cnameAr:c?c.nameAr:'',phone:c?c.phone:OD.walk.phone,lines:OD.lines.map(l=>({...l,total:+(l.qty*l.rate).toFixed(2)})),sub,vatPct:vp,vat,total:tot,pay:OD.pay,note:OD.note,budget:OD.budget,uid:U.uid,by:ME.name,branch:ME.branch||'',at:Date.now(),status:'sent'};
