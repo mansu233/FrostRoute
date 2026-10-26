@@ -107,14 +107,15 @@ function route(){
  if(ME.status!='approved')return R(`<div class="box"><h1>${ME.status=='pending'?'Waiting for approval':'Access blocked'}</h1>
   <p class=mu>${ME.status=='pending'?'Your account is created. The admin must approve it before you can use the app.':'Your account is '+ME.status+'. Contact the admin.'}</p>
   <button class="b ghost" onclick="auth.signOut()">Sign out</button><p class=mu>v${APP.version}</p></div>`);
+ if(hasPin()&&!unlocked&&+sessionStorage.getItem('unl')>ts()){unlocked=true;sessionStorage.removeItem('unl')}
  if(!hasPin())return pinView(true);
  if(!unlocked)return pinView(false);
  ME.role=='admin'?adminView():memberView();
- startNearby();
+ startNearby();restoreDraft();
 }
 document.addEventListener('visibilitychange',()=>{
  if(document.hidden)hiddenAt=ts();
- else if(U&&unlocked&&hiddenAt&&ts()-hiddenAt>CFG.pinLockSeconds*1000){unlocked=false;route()}
+ else if(U&&unlocked&&hiddenAt&&ts()-hiddenAt>CFG.pinLockSeconds*1000&&ts()>NOLOCK){unlocked=false;route()}
 });
 
 /* ---------- 6-digit PIN ---------- */

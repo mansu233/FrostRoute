@@ -1,6 +1,6 @@
 /* Phase 5: collect payment, returns, expenses, day closing + money counter, night load list, reports */
 let PEND=[],PAY=[],RET=[],EXP=[],CLS=[],cashUn=false,RT=null,CNT={};
-const DENOMS=[500,200,100,50,10,5,1,0.5,0.25],sum=(a,k)=>a.reduce((s,x)=>s+(+x[k]||0),0);
+const DENOMS=[500,200,100,50,20,10,5,1,0.5,0.25],sum=(a,k)=>a.reduce((s,x)=>s+(+x[k]||0),0);
 function loadCash(){
  loadData();
  if(!cUnsub)cUnsub=db.collection('customers').onSnapshot(s=>{CUST=s.docs.map(d=>({id:d.id,...d.data()}));drawCust()},()=>{cUnsub=null});

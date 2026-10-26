@@ -1,3 +1,4 @@
+let NOLOCK=0;
 /* Phase 2: products, units, barcodes, VAT, cost PIN, CSV import */
 let PRODS=[],pUnsub=null,PQ={q:'',cat:'',max:'',sort:'name'},COSTOK=0,COSTMAP={},IMG=null;
 const canAdd=()=>ME.role=='admin'||(ME.perms&&ME.perms.addProducts);
@@ -10,7 +11,7 @@ function productsView(el,member){
  <div class=row><input id=pq placeholder="Search name, barcode, SL" value="${esc(PQ.q)}"><button class="b s" id=psc>Scan</button></div>
  <div class=row><select id=pc></select><input id=pm type=number placeholder="Max price" value="${PQ.max}"><select id=ps>
  ${[['name','A-Z'],['lo','Price low'],['hi','Price high'],['sl','SL']].map(x=>`<option value=${x[0]} ${PQ.sort==x[0]?'selected':''}>${x[1]}</option>`).join('')}</select></div>
- ${canAdd()?'<button class="b s" id=pad>Add product</button><button class="b s ghost" id=pim>Import CSV</button>':''}
+ ${canAdd()?'<button class="b s" id=pad>Add product</button><button class="b s ghost" id=pim>Import CSV</button><button class="b s ghost" id=pit>CSV template</button><button class="b s ghost" id=pip>Import photos</button><button class="b s ghost" id=psm>Sample CSV</button>':''}
  ${ME.role=='admin'?'<button class="b s ghost" id=pco>Show cost (30 s)</button>':''}<div id=pl></div>`;
  $('#pq').oninput=e=>{PQ.q=e.target.value.trim();drawProds()};
  $('#pq').onkeydown=e=>{if(e.key=='Enter')e.target.select()};
@@ -19,7 +20,7 @@ function productsView(el,member){
  $('#pc').onchange=e=>{PQ.cat=e.target.value;drawProds()};
  $('#psc').onclick=()=>scanCam(c=>{PQ.q=c;$('#pq').value=c;drawProds()});
  if($('#pad'))$('#pad').onclick=()=>editForm({});
- if($('#pim'))$('#pim').onclick=importCsv;
+ if($('#pim'))$('#pim').onclick=importCsv;if($('#pit'))$('#pit').onclick=csvTemplate;if($('#pip'))$('#pip').onclick=bulkPhotos;if($('#psm'))$('#psm').onclick=()=>dl('products-sample',[CSVH,['Rana Hot Sauce 474ML',12.5,'Sauces','',12,'',24,'','','https://example.com/rana.jpg','']]);
  if($('#pco'))$('#pco').onclick=showCost;
  $('#pl').onclick=e=>{const d=e.target.dataset;if(d.edit)editForm(PRODS.find(p=>p.id==d.edit));if(d.newbc)editForm({bcs:[d.newbc],units:{pcs:{bc:d.newbc}}})};
  if(!pUnsub)pUnsub=db.collection('products').onSnapshot(s=>{PRODS=s.docs.map(d=>({id:d.id,...d.data()}));drawProds()},()=>{pUnsub=null});
@@ -44,40 +45,49 @@ function drawProds(){
   ${showCost?`<span class="tag pending">Cost ${COSTMAP[p.id]??'-'}</span> `:''}${canAdd()?`<button class="b s ghost" data-edit=${p.id}>Edit</button>`:''}</div>`}).join('');
  L.innerHTML=h;
 }
-/* ----- add / edit form ----- */
+/* ----- add / edit form (simple) ----- */
+const thumb=f=>new Promise(r=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),s=Math.min(1,160/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);r(c.toDataURL('image/jpeg',.6))};im.onerror=()=>r(null);im.src=URL.createObjectURL(f)});
+function catOpts(sel){const cs=[...new Set(PRODS.map(p=>p.category).filter(Boolean))].sort();return '<option value="">Choose category</option>'+cs.map(c=>`<option ${c==sel?'selected':''}>${esc(c)}</option>`).join('')+'<option value="__new">+ New category...</option>'}
+const usedBcs=()=>new Set(PRODS.flatMap(p=>p.bcs||[]));
+const autoBc=used=>{let c;do{c=String(100000+Math.floor(Math.random()*900000))}while(used.has(c));used.add(c);return c};
+const blobThumb=b=>thumb(b);
+function genBc(extra=[]){const used=new Set([...PRODS.flatMap(p=>p.bcs||[]),...extra]);let c;do{c=String(100000+Math.floor(Math.random()*900000))}while(used.has(c));return c}
 function editForm(p){
  IMG=null;const u=p.units||{},m=document.createElement('div');m.id='pf';
  m.style.cssText='position:fixed;inset:0;background:var(--bg);overflow:auto;z-index:20;padding:12px;padding-top:calc(12px + env(safe-area-inset-top))';
  const f=(i,l,v='',t='text')=>`<label class=mu>${l}</label><input id=f_${i} type=${t} value="${esc(v)}">`;
- m.innerHTML=`<div class=wrap><h2>${p.id?'Edit':'New'} product</h2>${f('sl','SL (blank = next number)',p.sl||'')}${f('name','Product name',p.name||'')}${f('cat','Category',p.category||'')}
- ${f('rate','Sales rate per piece, without VAT',p.rate||'','number')}${f('b0','Piece barcode',(u.pcs&&u.pcs.bc)||(p.bcs||[])[0]||'')}
- ${f('q1','Pieces per packet',(u.packet&&u.packet.qty)||'','number')}${f('b1','Packet barcode',(u.packet&&u.packet.bc)||'')}
- ${f('q2','Pieces per carton',(u.carton&&u.carton.qty)||'','number')}${f('b2','Carton barcode',(u.carton&&u.carton.bc)||'')}
- ${f('sf','Season from',p.seasonFrom||'','date')}${f('st','Season to',p.seasonTo||'','date')}
- ${ME.role=='admin'?f('cost','Cost (leave empty to keep the saved cost)','','number'):''}
- <button class="b ghost" id=f_rd type=button>Read pack photo (name, size, barcode)</button><input id=f_rf type=file accept="image/*" capture=environment hidden><p class=mu id=f_rs></p>
- <label class=mu>Image</label><input id=f_img type=file accept="image/*" capture=environment>
- <label class=perm><input type=checkbox id=f_act ${p.active===false?'':'checked'}>Active</label><p class=err id=fe></p>
- <button class=b id=fs>Save product</button><button class="b ghost" id=fc>Cancel</button></div>`;
- document.body.appendChild(m);
- $('#fc').onclick=()=>m.remove();
- $('#f_rd').onclick=()=>$('#f_rf').click();
- $('#f_rf').onchange=async e=>{const fl=e.target.files[0];if(!fl)return;$('#f_rs').textContent='Reading pack… (first time needs internet)';
+ m.innerHTML=`<div class=wrap><h2>${p.id?'Edit':'New'} product</h2>
+ <div class=row><button class="b ghost" id=f_cm type=button>Take photo</button><button class="b ghost" id=f_gl type=button>From gallery</button></div>
+ <input id=f_rf type=file accept="image/*" capture=environment hidden><input id=f_rg type=file accept="image/*" hidden><p class=mu id=f_rs>A photo of the pack fills the name, size and barcode, and becomes the product picture. Always check it.</p>
+ ${f('name','Product name (brand, product, size)',p.name||'')}<label class=mu>Category</label><select id=f_cat>${catOpts(p.category)}</select>
+ ${f('rate','Price per piece, without VAT',p.rate||'','number')}
+ <label class=mu>Barcode (empty = the app makes a 6-digit one)</label><div class=row><input id=f_b0 inputmode=numeric value="${esc((u.pcs&&u.pcs.bc)||(p.bcs||[])[0]||'')}"><button class="b s" id=f_sb type=button>Scan</button><button class="b s ghost" id=f_ab type=button>Auto</button></div>
+ <details><summary>More units: packet, carton</summary>${f('q1','Pieces per packet',(u.packet&&u.packet.qty)||'','number')}${f('b1','Packet barcode',(u.packet&&u.packet.bc)||'')}${f('q2','Pieces per carton',(u.carton&&u.carton.qty)||'','number')}${f('b2','Carton barcode',(u.carton&&u.carton.bc)||'')}</details>
+ <details><summary>More options</summary>${f('sl','SL (empty = next number)',p.sl||'')}${f('sf','Season from',p.seasonFrom||'','date')}${f('st','Season to',p.seasonTo||'','date')}${ME.role=='admin'?f('cost','Cost (empty = keep saved cost)','','number'):''}<label class=perm><input type=checkbox id=f_act ${p.active===false?'':'checked'}>Active</label></details>
+ <p class=err id=fe></p><button class=b id=fs>Save product</button><button class="b ghost" id=fc>Cancel</button></div>`;
+ document.body.appendChild(m);draftBind(m,'prod',p.id);
+ $('#fc').onclick=()=>{draftClear();m.remove()};
+ $('#f_cm').onclick=()=>pickFile($('#f_rf'));$('#f_gl').onclick=()=>pickFile($('#f_rg'));
+ const rd=async e=>{const fl=e.target.files[0];if(!fl)return;thumb(fl).then(d=>{if(d)IMG=d});$('#f_rs').textContent='Reading pack... (first time needs internet)';
   try{const r=await readPack(fl),set=(i,v)=>{if(v&&!$('#f_'+i).value)$('#f_'+i).value=v};
    set('name',(r.name+(r.size&&!r.name.includes(r.size)?' '+r.size:'')).trim());set('b0',r.barcode);
-   $('#f_rs').textContent='Done'+(r.barcode?'':' (barcode not read, scan it with the Scan button)')+'. Check every field.'}catch(x){$('#f_rs').textContent=x.message}};
- $('#f_img').onchange=e=>{const fl=e.target.files[0];if(!fl)return;const im=new Image();im.onload=()=>{const c=document.createElement('canvas'),s=Math.min(1,160/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);IMG=c.toDataURL('image/jpeg',.6)};im.src=URL.createObjectURL(fl)};
+   $('#f_rs').textContent='Done'+(r.barcode?'':' (barcode not read, use Scan or Auto)')+'. Check every field.'}catch(x){$('#f_rs').textContent=x.message}};
+ $('#f_rf').onchange=rd;$('#f_rg').onchange=rd;
+ $('#f_sb').onclick=()=>scanCam(c=>{$('#f_b0').value=c});$('#f_ab').onclick=()=>{$('#f_b0').value=genBc([$('#f_b1').value,$('#f_b2').value])};
+ $('#f_cat').onchange=e=>{if(e.target.value=='__new'){const n=(prompt('New category name')||'').trim();if(n){e.target.add(new Option(n,n));e.target.value=n}else e.target.value=''}};
  $('#fs').onclick=async()=>{
   const g=i=>$('#f_'+i).value.trim(),bc={pcs:bcn(g('b0')),packet:bcn(g('b1')),carton:bcn(g('b2'))},q1=num(g('q1')),q2=num(g('q2')),rate=num(g('rate')),er=t=>$('#fe').textContent=t;
-  if(!g('name')||!rate)return er('Name and rate are required.');
+  if(!g('name')||!rate)return er('Name and price are required.');
   if((bc.packet&&!q1)||(bc.carton&&!q2))return er('Enter pieces per packet / carton.');
+  if(!bc.pcs)bc.pcs=genBc([bc.packet,bc.carton]);
   const bcs=Object.values(bc).filter(Boolean);if(new Set(bcs).size<bcs.length)return er('Each unit needs its own barcode.');
   const dup=PRODS.find(x=>x.id!=p.id&&(x.bcs||[]).some(b=>bcs.includes(b)));if(dup)return er('Barcode already used by '+dup.name);
   const ref=p.id?db.doc('products/'+p.id):db.collection('products').doc();
-  const d={sl:g('sl')?num(g('sl')):(p.sl||Math.max(0,...PRODS.map(x=>x.sl||0))+1),name:g('name'),category:g('cat'),rate,
+  const d={sl:g('sl')?num(g('sl')):(p.sl||Math.max(0,...PRODS.map(x=>x.sl||0))+1),name:g('name'),category:g('cat')=='__new'?'':g('cat'),rate,
    units:{pcs:{bc:bc.pcs},packet:{bc:bc.packet,qty:q1},carton:{bc:bc.carton,qty:q2}},bcs,active:$('#f_act').checked,seasonFrom:g('sf'),seasonTo:g('st'),updatedAt:Date.now(),updatedBy:U.uid};
   if(IMG)d.img=IMG;
-  try{await ref.set(d,{merge:true});logAct(p.id?'Product edited':'Product added',d.name+', rate '+d.rate+(p.id&&p.rate!=d.rate?' (was '+p.rate+')':''));if(ME.role=='admin'&&g('cost')!=='')await db.doc('productCosts/'+ref.id).set({cost:num(g('cost'))});m.remove()}catch(x){er(x.message)}
+  try{await ref.set(d,{merge:true});logAct(p.id?'Product edited':'Product added',d.name+', rate '+d.rate+(p.id&&p.rate!=d.rate?' (was '+p.rate+')':''));
+   if(ME.role=='admin'&&g('cost')!=='')await db.doc('productCosts/'+ref.id).set({cost:num(g('cost'))});draftClear();m.remove()}catch(x){er(x.message)}
  };
 }
 /* ----- cost PIN (admin only, auto-hides after 30 s) ----- */
@@ -100,27 +110,32 @@ async function scanCam(cb){
  try{st=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});v.srcObject=st;await v.play()}catch(e){end();return alert('Camera blocked. Allow camera for this site.')}
  const t=setInterval(async()=>{if(stop)return clearInterval(t);try{const r=await det.detect(v);if(r.length){clearInterval(t);if(navigator.vibrate)navigator.vibrate(80);end();cb(r[0].rawValue)}}catch(e){}},300);
 }
-/* ----- CSV import ----- */
+/* ----- CSV import (100+ lines, photos by image_url) ----- */
+const CSVH=['name','rate','category','barcode','packet_qty','packet_barcode','carton_qty','carton_barcode','cost','image_url','sl'];
 function importCsv(){
- const i=document.createElement('input');i.type='file';i.accept='.csv,text/csv';
+ const i=document.createElement('input');i.type='file';i.accept='.csv,text/csv';NOLOCK=Date.now()+180000;
  i.onchange=async()=>{
   const rows=(await i.files[0].text()).replace(/^\uFEFF/,'').split(/\r?\n/).filter(r=>r.trim()).map(r=>r.match(/("([^"]|"")*"|[^,]*)(,|$)/g).map(c=>c.replace(/,$/,'').replace(/^"|"$/g,'').replace(/""/g,'"').trim()));
   const H=rows.shift().map(h=>h.toLowerCase().replace(/[^a-z_]/g,'')),ix=k=>H.indexOf(k);
-  if(ix('name')<0||ix('rate')<0)return alert('CSV needs at least the columns: name, rate. Optional: sl, barcode, category, packet_qty, packet_barcode, carton_qty, carton_barcode, cost');
-  let b=db.batch(),n=0,tot=0,nx=Math.max(0,...PRODS.map(x=>x.sl||0))+1;
-  const c=(r,k)=>ix(k)<0?'':(r[ix(k)]||'');
+  if(ix('name')<0||ix('rate')<0)return alert('CSV needs at least the columns: name, rate. Use the Sample CSV button for the full pattern.');
+  const t=document.createElement('div');t.style.cssText='position:fixed;left:12px;right:12px;top:80px;z-index:50;background:var(--card);border:2px solid var(--pr);border-radius:12px;padding:12px';document.body.appendChild(t);
+  const UB=[];let b=db.batch(),n=0,tot=0,pic=0,miss=0,auto=0,nx=Math.max(0,...PRODS.map(x=>x.sl||0))+1;const used=usedBcs(),c=(r,k)=>ix(k)<0?'':(r[ix(k)]||'');
   for(const r of rows){
+   t.textContent='Importing '+(tot+1)+' of '+rows.length+'…';
    const name=c(r,'name'),rate=num(c(r,'rate'));if(!name||!rate)continue;
-   const bc={pcs:bcn(c(r,'barcode')),packet:bcn(c(r,'packet_barcode')),carton:bcn(c(r,'carton_barcode'))},bcs=Object.values(bc).filter(Boolean);
-   const old=PRODS.find(x=>(x.bcs||[]).some(y=>bcs.includes(y))),ref=old?db.doc('products/'+old.id):db.collection('products').doc();
-   b.set(ref,{sl:c(r,'sl')?num(c(r,'sl')):(old?old.sl:nx++),name,category:c(r,'category'),rate,units:{pcs:{bc:bc.pcs},packet:{bc:bc.packet,qty:num(c(r,'packet_qty'))},carton:{bc:bc.carton,qty:num(c(r,'carton_qty'))}},bcs,active:true,updatedAt:Date.now(),updatedBy:U.uid},{merge:true});n++;
+   const old=PRODS.find(x=>x.name.toLowerCase()==name.toLowerCase())||PRODS.find(x=>c(r,'barcode')&&(x.bcs||[]).includes(bcn(c(r,'barcode'))));
+   const bc={pcs:bcn(c(r,'barcode')),packet:bcn(c(r,'packet_barcode')),carton:bcn(c(r,'carton_barcode'))};
+   if(!bc.pcs){if(old&&old.units&&old.units.pcs&&old.units.pcs.bc)bc.pcs=old.units.pcs.bc;else{bc.pcs=autoBc(used);auto++}}
+   const bcs=Object.values(bc).filter(Boolean),ref=old?db.doc('products/'+old.id):db.collection('products').doc();
+   const d={sl:c(r,'sl')?num(c(r,'sl')):(old?old.sl:nx++),name,category:c(r,'category'),rate,units:{pcs:{bc:bc.pcs},packet:{bc:bc.packet,qty:num(c(r,'packet_qty'))},carton:{bc:bc.carton,qty:num(c(r,'carton_qty'))}},bcs,active:true,updatedAt:Date.now(),updatedBy:U.uid};
+   const url=c(r,'image_url');if(url)try{const rs=await fetch(url);if(!rs.ok)throw 0;d.img=await blobThumb(await rs.blob());pic++}catch(e){miss++}
+   b.set(ref,d,{merge:true});n++;
    if(ME.role=='admin'&&c(r,'cost')!=='')b.set(db.doc('productCosts/'+ref.id),{cost:num(c(r,'cost'))});
-   if(++tot%200==0){await b.commit();b=db.batch()}
+   if(++tot%100==0){await b.commit();b=db.batch()}
   }
-  await b.commit();alert(n+' products imported or updated.');
+  await b.commit();t.remove();alert(n+' products imported or updated.\n'+auto+' got an automatic 6-digit barcode.\n'+pic+' pictures added'+(miss?', '+miss+' pictures could not be loaded (the link must be a direct image link that allows access).':'.'));
  };i.click();
 }
-
 /* iPhone / browsers without BarcodeDetector: ZXing library, loads once (needs internet the first time) */
 async function scanZx(cb){
  if(!window.ZXing)try{await new Promise((ok,no)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';s.onload=ok;s.onerror=no;document.head.appendChild(s)})}catch(e){return alert('Needs internet the first time to load the scanner.')}

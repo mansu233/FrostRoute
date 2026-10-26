@@ -65,3 +65,23 @@ async function homeView(el){
   el.onclick=e=>{const g=e.target.closest('[data-go]');if(g){if(g.dataset.go=='users')filter='pending';tab=g.dataset.go;adminView()}}};
  window.cashRedraw=draw;draw();
 }
+
+/* camera safety: keep the form, skip the PIN for 3 minutes after a photo, restore after a page restart */
+function pickFile(inp){NOLOCK=Date.now()+18e4;window.noLock=NOLOCK;try{sessionStorage.setItem('unl',Date.now()+18e4)}catch(e){}inp.click()}
+function draftBind(m,type,id){const sv=()=>{const v={};m.querySelectorAll('input,select,textarea').forEach(e=>{if(e.id&&e.type!='file')v[e.id]=e.type=='checkbox'?e.checked:e.value});try{localStorage.setItem('formdraft',JSON.stringify({type,id:id||'',v,at:Date.now(),uid:U.uid}))}catch(x){}};m.addEventListener('input',sv);m.addEventListener('change',sv)}
+const draftClear=()=>localStorage.removeItem('formdraft');
+function restoreDraft(){let d;try{d=JSON.parse(localStorage.getItem('formdraft'))}catch(e){}
+ if(!d||d.uid!=U.uid||Date.now()-d.at>30*6e4||$('#pf')||$('#c_sv'))return;loadCash();
+ setTimeout(()=>{if($('#pf')||$('#c_sv'))return;if(d.type=='prod')editForm(PRODS.find(x=>x.id==d.id)||(d.id?{id:d.id}:{}));else custForm(CUST.find(x=>x.id==d.id)||(d.id?{id:d.id}:{}));
+  setTimeout(()=>{for(const k in d.v){const e=document.getElementById(k);if(!e)continue;if(e.type=='checkbox')e.checked=d.v[k];else{if(e.tagName=='SELECT'&&![...e.options].some(o=>o.value==d.v[k]))e.add(new Option(d.v[k],d.v[k]));e.value=d.v[k]}}},400)},1500)}
+/* CSV template + bulk photos (file name = barcode or SL) */
+function csvTemplate(){dl('products-template',[['sl','name','category','barcode','rate','packet_qty','packet_barcode','carton_qty','carton_barcode','cost'],['','Rana Hot Sauce 474ML','Sauces','','5.50','','','24','',''],['','Mirinda 1L','Drinks','012000804670','5.00','6','','','','']])}
+function bulkPhotos(){
+ const i=document.createElement('input');i.type='file';i.accept='image/*';i.multiple=true;
+ i.onchange=async()=>{let ok=0,miss=[],b=db.batch(),n=0;
+  for(const f of i.files){const key=f.name.replace(/\.[^.]+$/,'').trim(),p=PRODS.find(x=>(x.bcs||[]).includes(bcn(key))||String(x.sl)==key);
+   if(!p){miss.push(f.name);continue}const d=await thumb(f);if(!d){miss.push(f.name);continue}
+   b.update(db.doc('products/'+p.id),{img:d});ok++;if(++n%200==0){await b.commit();b=db.batch()}}
+  await b.commit();alert(ok+' photos attached.'+(miss.length?'\n\nNo matching product for:\n'+miss.slice(0,15).join('\n'):''))};
+ NOLOCK=Date.now()+18e4;i.click();
+}
