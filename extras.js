@@ -25,7 +25,7 @@ function profileView(c){
  loadCash();OV=()=>profileView(c);const m=ov(),bal=custBal(c.id),last=ORDS.find(o=>o.cid==c.id&&o.status!='cancelled'),rem=REM.filter(r=>r.cid==c.id&&!r.done);
  const b=(a,l,k='ghost')=>`<button class="b ${k}" data-a=${a}>${l}</button>`;
  m.innerHTML=`<div class=row style="padding:8px 0"><h2 style=flex:1>${esc(c.nameEn)}</h2><button class="b s ghost" id=px>Close</button></div>
- <div class=card><div dir=rtl>${esc(c.nameAr||'')}</div><div class=mu>${esc(c.address||'')}</div><div>${esc(c.phone||'')} ${c.sup?', supervisor '+esc(c.sup):''}</div>
+ <div class=card>${c.photo?`<img src="${c.photo}" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:8px">`:''}<div dir=rtl>${esc(c.nameAr||'')}</div><div class=mu>${esc(c.address||'')}</div><div>${esc(c.phone||'')} ${c.sup?', supervisor '+esc(c.sup):''}</div>
  <div class=mu>${c.code?'Code '+esc(c.code)+', ':''}${c.visitType=='monthly'?'Monthly visit':DAYS[c.day]+' visit'}${c.lastVisit?', last visit '+c.lastVisit:''}</div>
  <div class=row style="margin-top:8px"><div style=flex:1><div class=mu>Balance due</div><b class="${bal>0?'err':''}">${money(bal)}</b></div><div style=flex:1><div class=mu>Last order</div><b>${last?new Date(last.at).toLocaleDateString():'none'}</b>${last?`<div class=mu>${money(last.total)}</div>`:''}</div></div>
  ${rem.length?`<div class=err>${rem.map(r=>esc(r.text)).join('; ')}</div>`:''}</div>

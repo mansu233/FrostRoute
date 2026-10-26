@@ -64,7 +64,7 @@ function drawCust(){
  b.innerHTML=`<div class=row><input id=cq placeholder="Search name, phone, supervisor, address, code" value="${esc(CV.q)}"><button class="b s" id=cn style="width:auto">Nearest</button></div>
  <button class="b s" data-a=new>Add customer</button>${CV.tab=='today'&&a.length>lim?`<p class=err>${a.length} visits planned, over the daily limit of ${lim}.</p>`:''}
  <p class=mu>${a.length} customers${CV.tab=='today'?' planned for today':''}</p>`+a.map(c=>{const rc=REM.filter(r=>r.cid==c.id&&!r.done).length;
- return `<div class=card><b>${esc(c.nameEn||'')}</b> <span dir=rtl>${esc(c.nameAr||'')}</span>
+ return `<div class=card>${c.photo?`<img src="${c.photo}" style="float:right;width:64px;height:64px;object-fit:cover;border-radius:10px;margin-left:8px">`:''}<b>${esc(c.nameEn||'')}</b> <span dir=rtl>${esc(c.nameAr||'')}</span>
  <div class=mu>${esc(c.address||'')}${c.sup?', supervisor '+esc(c.sup):''}${c._d<1e9?', '+(c._d>999?(c._d/1000).toFixed(1)+' km':c._d+' m'):''}</div><div class=mu>${esc(c.phone||'')} ${c.code?'Code '+esc(c.code):''}</div>
  ${c.lat?'':'<span class="tag pending">No location</span> '}${c.lead?'<span class="tag admin">Lead</span> ':''}${custBal(c.id)>0?`<span class="tag rejected">Due ${money(custBal(c.id))}</span> `:''}${rc?`<span class="tag rejected">${rc} reminder${rc>1?'s':''}</span> `:''}
  <span class=mu>${c.visitType=='monthly'?'Monthly':DAYS[c.day]||''}${c.visitType=='skip'?' (skip a week when set)':''}${c.lastVisit?', last visit '+c.lastVisit:''}${admin&&c.ownerName?', '+esc(c.ownerName):''}</span><div>
@@ -90,24 +90,21 @@ async function custForm(c){
  const m=document.createElement('div');m.style.cssText='position:fixed;inset:0;background:var(--bg);overflow:auto;z-index:20;padding:12px;padding-top:calc(12px + env(safe-area-inset-top))';
  const f=(i,l,v='',x='')=>`<label class=mu>${l}</label><input id=c_${i} value="${esc(v)}" ${x}>`;
  m.innerHTML=`<div class=wrap><h2>${c.id?'Edit':'Add'} customer</h2>
- <div class=row><button class="b ghost" id=c_cam type=button>Take photo</button><button class="b ghost" id=c_gl type=button>From gallery</button></div><input id=c_file type=file accept="image/*" capture=environment hidden><input id=c_gal type=file accept="image/*" hidden><p class=mu id=c_st>A photo of an invoice, signboard or visiting card fills the form. Always check it.</p>
+ <img id=c_pv src="${c.photo||''}" style="display:${c.photo?'block':'none'};width:100%;max-height:220px;object-fit:cover;border-radius:14px;margin:6px 0"><div class=row><button class="b ghost" id=c_cam type=button>Shop photo: take</button><button class="b ghost" id=c_gl type=button>From gallery</button></div><input id=c_file type=file accept="image/*" capture=environment hidden><input id=c_gal type=file accept="image/*" hidden>
  ${f('en','Shop name (English)',c.nameEn)}${f('ar','Shop name (Arabic)',c.nameAr,'dir=rtl')}${f('code','Customer code',c.code)}${f('vat','VAT No',c.vat)}${f('cr','CR No (س.ت)',c.cr)}
  ${f('ph','Phone (required)',c.phone,'inputmode=tel')}${f('sup','Supervisor name',c.sup)}${f('ad','Address (English, required)',c.address)}
  <label class=mu>Visit</label><select id=c_vt><option value=weekly>Weekly</option><option value=skip>Weekly, can skip a week</option><option value=monthly>Monthly (app picks the day)</option></select>
  <select id=c_day>${DAYS.map((d,i)=>`<option value=${i}>${d}</option>`).join('')}</select>
  <p class=mu id=c_loc>${c.lat?'Location saved (±'+(c.acc||'?')+' m)':'Getting GPS location…'}</p><button class="b s ghost" id=c_rl type=button>Retake location</button>
  <p class=err id=c_er></p><button class=b id=c_sv>Save customer</button><button class="b ghost" id=c_x>Cancel</button></div>`;
- document.body.appendChild(m);draftBind(m,'cust',c.id);const g=i=>$('#c_'+i).value.trim();let pos=c.lat?{lat:c.lat,lng:c.lng,acc:c.acc}:null;
+ document.body.appendChild(m);draftBind(m,'cust',c.id);let SP=null;const g=i=>$('#c_'+i).value.trim();let pos=c.lat?{lat:c.lat,lng:c.lng,acc:c.acc}:null;
  $('#c_vt').value=c.visitType||'weekly';$('#c_day').value=c.day??new Date().getDay();$('#c_x').onclick=()=>{draftClear();m.remove()};
  const loc=async()=>{try{pos=await getPos();$('#c_loc').textContent='Location saved (±'+pos.acc+' m)'+(pos.acc>100?'. Weak GPS, try outside.':'')}catch(e){$('#c_loc').textContent='No location yet. It can be saved at the next check-in.'}};
  $('#c_rl').onclick=loc;if(!c.lat)loc();
  $('#c_en').onblur=()=>{if(g('en')&&(!g('ar')||m.autoAr))$('#c_ar').value=toAr(g('en')),m.autoAr=1};
  $('#c_ar').onblur=()=>{if(g('ar')&&(!g('en')||m.autoEn))$('#c_en').value=toEn(g('ar')),m.autoEn=1};
- const rdc=async e=>{const fl=e.target.files[0];if(!fl)return;$('#c_st').textContent='Reading… (first time needs internet)';
-  try{const o=parseCard(await ocr(fl)),set=(i,v)=>{if(v&&!g(i))$('#c_'+i).value=v};
-   set('ar',o.name);set('vat',o.vat);set('cr',o.cr);set('ph',o.phone);set('ad',o.address);if(o.name&&!g('en')){$('#c_en').value=toEn(o.name);m.autoEn=1}
-   $('#c_st').textContent='Done. Check every field, the reading is only a suggestion.'}catch(x){$('#c_st').textContent=x.message}};
- $('#c_file').onchange=rdc;$('#c_gal').onchange=rdc;$('#c_cam').onclick=()=>pickFile($('#c_file'));$('#c_gl').onclick=()=>pickFile($('#c_gal'));
+ const rdp=async e=>{const fl=e.target.files[0];if(!fl)return;const d=await shrink(fl);if(d){SP=d;$('#c_pv').src=d;$('#c_pv').style.display='block'}};
+ $('#c_file').onchange=rdp;$('#c_gal').onchange=rdp;$('#c_cam').onclick=()=>pickFile($('#c_file'));$('#c_gl').onclick=()=>pickFile($('#c_gal'));
  $('#c_sv').onclick=async()=>{
   const er=t=>$('#c_er').textContent=t;let en=g('en'),ar=g('ar'),ad=g('ad');
   if(!en&&!ar)return er('Enter the shop name in English or Arabic.');if(!en)en=toEn(ar);if(!ar)ar=toAr(en);
@@ -117,7 +114,7 @@ async function custForm(c){
   const dup=oth.filter(x=>(vat&&x.vat==vat)||(cr&&x.cr==cr)||x.phone==phone);
   if(dup.length){if(!code)return er('Possible duplicate of '+dup[0].nameEn+'. Add a different customer code to save it as another shop.');
    if(!confirm('Possible duplicate of '+dup[0].nameEn+' (same VAT, CR or phone). Save anyway as a different shop?'))return}
-  const d={nameEn:en,nameAr:ar,code,vat,cr,phone,sup:g('sup'),address:ad,visitType:$('#c_vt').value,day:+$('#c_day').value,updatedAt:Date.now()};
+  const d={nameEn:en,nameAr:ar,code,vat,cr,phone,sup:g('sup'),address:ad,photo:SP||c.photo||'',visitType:$('#c_vt').value,day:+$('#c_day').value,updatedAt:Date.now()};
   if(pos){d.lat=pos.lat;d.lng=pos.lng;d.acc=pos.acc}
   if(!c.id){d.owner=U.uid;d.ownerName=ME.name;d.createdAt=Date.now();d.lead=true}
   try{await(c.id?db.doc('customers/'+c.id).update(d):db.collection('customers').add(d));draftClear();m.remove()}catch(x){er(x.message)}

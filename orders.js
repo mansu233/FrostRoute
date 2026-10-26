@@ -3,7 +3,7 @@ let ORDS=[],oUnsub=null,OD=null,SC=null,OV=null,UNDO=null;
 const canRate=()=>ME.role=='admin'||(ME.perms&&ME.perms.editRate),dKey=()=>'draft_'+U.uid;
 const saveD=()=>{try{localStorage.setItem(dKey(),JSON.stringify({...OD,sel:[],hl:[]}))}catch(e){}};
 const pu=(p,u)=>u=='pcs'?1:(p.units&&p.units[u]&&p.units[u].qty)||1;
-const avail=p=>['pcs',...['packet','carton'].filter(k=>p.units&&p.units[k]&&p.units[k].qty)];
+const avail=p=>['pcs',...Object.keys(p.units||{}).filter(k=>k!='pcs'&&p.units[k]&&p.units[k].qty)];
 const odraw=()=>{window.tgDraw&&tgDraw();window.cashRedraw&&$('#cw2')&&cashRedraw();typeof drawCust=='function'&&$('#cb')&&drawCust();return odrawX()};const odrawX=()=>OV?OV():(window.ordersRedraw&&$('#ow')&&ordersRedraw());
 function loadData(){
  if(!pUnsub)pUnsub=db.collection('products').onSnapshot(s=>{PRODS=s.docs.map(d=>({id:d.id,...d.data()}));drawProds();odraw()},()=>{pUnsub=null});
@@ -13,7 +13,7 @@ function stats(cid){const fast={},cust={};ORDS.filter(o=>o.status!='cancelled').
 function ov(){let m=$('#ov');if(!m){m=document.createElement('div');m.id='ov';m.style.cssText='position:fixed;inset:0;background:var(--bg);overflow:auto;z-index:20;padding:0 12px 90px;padding-top:calc(8px + env(safe-area-inset-top))';document.body.appendChild(m)}return m}
 const closeOv=()=>{const m=$('#ov');m&&m.remove();OV=null;window.ordersRedraw&&$('#ow')&&ordersRedraw()};
 const mkLine=(p,unit,qty,st)=>({pid:p.id,sl:p.sl||'',name:p.name,unit,qty,rate:+(p.rate*pu(p,unit)).toFixed(2),edited:false,st:st||''});
-const byCode=c=>{const p=PRODS.find(p=>(p.bcs||[]).includes(c));return p?{p,unit:['carton','packet','pcs'].find(k=>p.units&&p.units[k]&&p.units[k].bc==c)||'pcs'}:null};
+const byCode=c=>{const p=PRODS.find(p=>(p.bcs||[]).includes(c));return p?{p,unit:Object.keys(p.units||{}).find(k=>p.units[k]&&p.units[k].bc==c)||'pcs'}:null};
 /* ---- entry points ---- */
 function ordersHome(el,member){
  loadCash();OV=null;
@@ -127,7 +127,7 @@ async function sendOrder(sub,vat,tot,vp){
  try{db.collection('orders').add(o);if(o.lines.some(l=>l.edited))logAct('Rate edited in order','#'+no+', '+o.cname);localStorage.setItem('ordn_'+U.uid,n)}catch(e){return alert(e.message)}
  OD=null;localStorage.removeItem(dKey());closeOv();window.open(waLink(o));if(window.ordersRedraw)ordersRedraw();
 }
-function waText(o){const d=new Date(o.at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}),L=ul=>({pcs:'Pcs',packet:'Pack',carton:'Cart'}[ul]||ul);
+function waText(o){const d=new Date(o.at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}),L=ul=>({pcs:'Pcs',packet:'Pack',carton:'Cart'}[ul]||ul.charAt(0).toUpperCase()+ul.slice(1));
  return `*ORDER #${o.no}* – ${d}\nCustomer: ${o.cname}${o.cnameAr?' / '+o.cnameAr:''}\n`+o.lines.map((l,i)=>`${i+1}. ${l.name} – ${l.qty} ${L(l.unit)} × ${money(l.rate)} = ${money(l.total)}`).join('\n')
  +`\nSubtotal: ${money(o.sub)}\nVAT ${o.vatPct}%: ${money(o.vat)}\n*TOTAL: ${money(o.total)}*\n${o.pay=='credit'?'Credit':'Cash'}${o.note?'\nNote: '+o.note:''}\nBy: ${o.by}`}
 function waLink(o){let p=ph(o.phone||'');return 'https://wa.me/'+(p?'966'+p.slice(1):'')+'?text='+encodeURIComponent(waText(o))}
