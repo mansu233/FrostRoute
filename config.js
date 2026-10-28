@@ -1,6 +1,6 @@
 // ONE place to rename the app or change the version.
 // Every update: raise APP.version (the service worker reads this file, so phones refresh automatically).
-const APP = { name: "FrostRoute", version: "0.9.8", date: "2026-10-24" };
+const APP = { name: "FrostRoute", version: "0.10.0", date: "2026-10-24" };
 
 // Paste your Firebase web app config (Firebase console > Project settings > Your apps)
 const firebaseConfig = {
@@ -29,7 +29,7 @@ const PERMS = {
   viewProducts: "View products", createOrders: "Create orders", editRate: "Edit rate in order",
   addProducts: "Add / edit products", cancelSent: "Cancel sent orders", makeReturns: "Sales returns",
   collectPayments: "Collect payments", dayClosing: "Day closing", moneyCounter: "Money counter + WhatsApp share",
-  loadList: "Night load list", viewRanking: "Customer ranking", viewReports: "Reports"
+  loadList: "Night load list", skillPlan: "30-day skill plan (private)", viewRanking: "Customer ranking", viewReports: "Reports"
 };
 
 // Fonts the admin can choose in Settings (English and Arabic).
