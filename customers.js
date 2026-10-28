@@ -48,14 +48,12 @@ function customersView(el,member){
  <div id=cb></div>`;
  el.querySelector('.tabs').onclick=e=>{if(e.target.dataset.t){CV.tab=e.target.dataset.t;customersView(el,member)}};
  loadCash();
- if(!rUnsub)rUnsub=db.collection('reminders').onSnapshot(s=>{REM=s.docs.map(d=>({id:d.id,...d.data()}));drawCust()},()=>{rUnsub=null});
+ startRem();
  drawCust();
 }
 function drawCust(){
  const b=$('#cb');if(!b)return;const admin=ME.role=='admin';if(CV.tab=='rank')return rankView(b);
- if(CV.tab=='rem'){const a=REM.filter(r=>!r.done).sort((x,y)=>(x.due||'').localeCompare(y.due||''));
-  b.innerHTML=a.length?a.map(r=>`<div class=card><b>${esc(r.cname)}</b><div>${esc(r.text)}</div><div class=mu>Due ${esc(r.due||'next visit')}</div><button class="b s grn" data-a=rdone data-id=${r.id}>Done</button></div>`).join(''):'<div class=card>No open reminders.</div>';
-  b.onclick=async e=>{if(e.target.dataset.a=='rdone')await db.doc('reminders/'+e.target.dataset.id).update({done:true})};return}
+ if(CV.tab=='rem')return remTab(b);
  let a=CUST.slice();const q=CV.q.toLowerCase(),qd=ph(CV.q);
  if(CV.tab=='today'){a=a.filter(dueToday)}
  else if(q)a=a.filter(c=>(`${c.nameEn} ${c.nameAr} ${c.sup} ${c.address} ${c.code} ${c.vat}`).toLowerCase().includes(q)||(qd.length>=3&&(c.phone||'').includes(qd)));
@@ -63,10 +61,10 @@ function drawCust(){
  const lim=CFG.dailyVisitLimit;
  b.innerHTML=`<div class=row><input id=cq placeholder="Search name, phone, supervisor, address, code" value="${esc(CV.q)}"><button class="b s" id=cn style="width:auto">Nearest</button></div>
  <button class="b s" data-a=new>Add customer</button>${CV.tab=='today'&&a.length>lim?`<p class=err>${a.length} visits planned, over the daily limit of ${lim}.</p>`:''}
- <p class=mu>${a.length} customers${CV.tab=='today'?' planned for today':''}</p>`+a.map(c=>{const rc=REM.filter(r=>r.cid==c.id&&!r.done).length;
+ <p class=mu>${a.length} customers${CV.tab=='today'?' planned for today':''}</p>`+a.map(c=>{const rc=REM.filter(r=>r.cid==c.id&&remActive(r)).length;
  return `<div class=card>${c.photo?`<img src="${c.photo}" style="float:right;width:64px;height:64px;object-fit:cover;border-radius:10px;margin-left:8px">`:''}<b>${esc(c.nameEn||'')}</b> <span dir=rtl>${esc(c.nameAr||'')}</span>
  <div class=mu>${esc(c.address||'')}${c.sup?', supervisor '+esc(c.sup):''}${c._d<1e9?', '+(c._d>999?(c._d/1000).toFixed(1)+' km':c._d+' m'):''}</div><div class=mu>${esc(c.phone||'')} ${c.code?'Code '+esc(c.code):''}</div>
- ${c.lat?'':'<span class="tag pending">No location</span> '}${c.lead?'<span class="tag admin">Lead</span> ':''}${custBal(c.id)>0?`<span class="tag rejected">Due ${money(custBal(c.id))}</span> `:''}${rc?`<span class="tag rejected">${rc} reminder${rc>1?'s':''}</span> `:''}
+ ${c.lat?'':'<span class="tag pending">No location</span> '}${c.lead?'<span class="tag admin">Lead</span> ':''}${custBal(c.id)>0?`<span class="tag rejected">Due ${money(custBal(c.id))}</span> `:''}${rc?`<button class="tag rejected" data-a=remv data-id=${c.id} style="border:0;cursor:pointer">${rc} reminder${rc>1?'s':''}</button> `:''}
  <span class=mu>${c.visitType=='monthly'?'Monthly':DAYS[c.day]||''}${c.visitType=='skip'?' (skip a week when set)':''}${c.lastVisit?', last visit '+c.lastVisit:''}${admin&&c.ownerName?', '+esc(c.ownerName):''}</span><div>
  <button class="b s grn" data-a=in data-id=${c.id}>Check in</button><button class="b s ghost" data-a=nav data-id=${c.id}>Navigate</button>
  <a class="b s ghost" style="display:inline-block;text-decoration:none" href="tel:${esc(c.phone)}">Call</a><a class="b s ghost" style="display:inline-block;text-decoration:none" href="https://wa.me/${c.phone?'966'+c.phone.slice(1):''}">WhatsApp</a>
@@ -81,7 +79,7 @@ function drawCust(){
   if(d.a=='nav')return c.lat?open(`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`):alert('No saved location. Check in at the shop to save it.');
   if(d.a=='today')return db.doc('customers/'+c.id).update({extraDate:todayD()});
   if(d.a=='skip'){const n=new Date();n.setDate(n.getDate()+((c.day-n.getDay()+7)%7||7));await db.doc('customers/'+c.id).update({skipDate:isoD(+n)});return alert('Skipped on '+isoD(+n)+'. The weekly plan returns after that.')}
-  if(d.a=='rem'){const t=prompt('Reminder for '+c.nameEn+' (e.g. get stamp for bill, bring product)');if(t)await db.collection('reminders').add({cid:c.id,cname:c.nameEn||c.nameAr,uid:U.uid,text:t,due:todayD(),done:false,at:Date.now()})}
+  if(d.a=='rem')return remView(c);if(d.a=='remv')return remView(c);
   if(d.a=='in')return checkIn(c);
  };
 }
@@ -125,6 +123,6 @@ async function checkIn(c){try{const p=await getPos();let dist=null,ok=false;
    if(c.lat){dist=hav(p.lat,p.lng,c.lat,c.lng);ok=dist<=CFG.gpsRadius}
    else if(confirm('This shop has no saved location. Save your current position as the shop location?'))await db.doc('customers/'+c.id).update({lat:p.lat,lng:p.lng,acc:p.acc});
    await db.collection('visits').add({cid:c.id,cname:c.nameEn||c.nameAr,uid:U.uid,at:Date.now(),lat:p.lat,lng:p.lng,dist,verified:ok});
-   await db.doc('customers/'+c.id).update({lastVisit:todayD(),lead:false});
-   const r=REM.filter(x=>x.cid==c.id&&!x.done).map(x=>x.text);
+   await db.doc('customers/'+c.id).update({lastVisit:todayD()});
+   const r=REM.filter(x=>x.cid==c.id&&remActive(x)).map(x=>x.text);
    alert((dist==null?'Checked in. Location saved.':ok?'Verified, '+dist+' m from the shop.':'Not at shop, '+dist+' m away (warning only).')+(r.length?'\nReminders:\n- '+r.join('\n- '):''))}catch(x){alert('GPS unavailable. Check-in not saved. Turn on location.')}}

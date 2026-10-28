@@ -124,7 +124,7 @@ async function sendOrder(sub,vat,tot,vp){
  if(!OD.lines.length)return alert('Add at least one product.');
  const n=(+localStorage.getItem('ordn_'+U.uid)||0)+1,no=ME.name.replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase()+n,c=OD.cust;
  const o={no,cid:c?c.id:'',cname:c?c.nameEn:(OD.walk.name||'Walk-in'),cnameAr:c?c.nameAr:'',phone:c?c.phone:OD.walk.phone,lines:OD.lines.map(l=>({...l,total:+(l.qty*l.rate).toFixed(2)})),sub,vatPct:vp,vat,total:tot,pay:OD.pay,note:OD.note,budget:OD.budget,uid:U.uid,by:ME.name,branch:ME.branch||'',at:Date.now(),status:'sent'};
- try{db.collection('orders').add(o);if(o.lines.some(l=>l.edited))logAct('Rate edited in order','#'+no+', '+o.cname);localStorage.setItem('ordn_'+U.uid,n)}catch(e){return alert(e.message)}
+ try{db.collection('orders').add(o);if(c)db.doc('customers/'+c.id).update({lead:false}).catch(()=>{});if(o.lines.some(l=>l.edited))logAct('Rate edited in order','#'+no+', '+o.cname);localStorage.setItem('ordn_'+U.uid,n)}catch(e){return alert(e.message)}
  OD=null;localStorage.removeItem(dKey());closeOv();window.open(waLink(o));if(window.ordersRedraw)ordersRedraw();
 }
 function waText(o){const d=new Date(o.at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}),L=ul=>({pcs:'Pcs',packet:'Pack',carton:'Cart'}[ul]||ul.charAt(0).toUpperCase()+ul.slice(1));

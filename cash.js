@@ -3,7 +3,7 @@ let PEND=[],PAY=[],RET=[],EXP=[],CLS=[],cashUn=false,RT=null,CNT={};
 const DENOMS=[500,200,100,50,20,10,5,1,0.5,0.25],sum=(a,k)=>a.reduce((s,x)=>s+(+x[k]||0),0);
 function loadCash(){
  loadData();
- if(!cUnsub)cUnsub=db.collection('customers').onSnapshot(s=>{CUST=s.docs.map(d=>({id:d.id,...d.data()}));drawCust()},()=>{cUnsub=null});
+ if(!cUnsub)cUnsub=(ME.role=='admin'?db.collection('customers'):db.collection('customers').where('owner','==',U.uid)).onSnapshot(s=>{CUST=s.docs.map(d=>({id:d.id,...d.data()}));drawCust()},()=>{cUnsub=null});
  if(cashUn)return;cashUn=true;const own=c=>ME.role=='admin'?db.collection(c):db.collection(c).where('uid','==',U.uid);
  [['payments',x=>PAY=x],['returns',x=>{RET=x.filter(r=>r.status!='pending'&&r.status!='rejected');PEND=x.filter(r=>r.status=='pending')}],['expenses',x=>EXP=x],['closings',x=>CLS=x]].forEach(([n,f])=>own(n).onSnapshot(s=>{f(s.docs.map(d=>({id:d.id,...d.data()})));window.cashRedraw&&$('#cw2')&&cashRedraw();$('#cb')&&drawCust();window.tgDraw&&tgDraw()},()=>{cashUn=false}));
 }

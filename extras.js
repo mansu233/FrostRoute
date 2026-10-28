@@ -22,18 +22,18 @@ function ledgerView(c){
 }
 /* ---- customer profile (opened from the nearby popup or the card) ---- */
 function profileView(c){
- loadCash();OV=()=>profileView(c);const m=ov(),bal=custBal(c.id),last=ORDS.find(o=>o.cid==c.id&&o.status!='cancelled'),rem=REM.filter(r=>r.cid==c.id&&!r.done);
+ loadCash();OV=()=>profileView(c);const m=ov(),bal=custBal(c.id),last=ORDS.find(o=>o.cid==c.id&&o.status!='cancelled'),rem=REM.filter(r=>r.cid==c.id&&remActive(r));
  const b=(a,l,k='ghost')=>`<button class="b ${k}" data-a=${a}>${l}</button>`;
  m.innerHTML=`<div class=row style="padding:8px 0"><h2 style=flex:1>${esc(c.nameEn)}</h2><button class="b s ghost" id=px>Close</button></div>
  <div class=card>${c.photo?`<img src="${c.photo}" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:8px">`:''}<div dir=rtl>${esc(c.nameAr||'')}</div><div class=mu>${esc(c.address||'')}</div><div>${esc(c.phone||'')} ${c.sup?', supervisor '+esc(c.sup):''}</div>
  <div class=mu>${c.code?'Code '+esc(c.code)+', ':''}${c.visitType=='monthly'?'Monthly visit':DAYS[c.day]+' visit'}${c.lastVisit?', last visit '+c.lastVisit:''}</div>
  <div class=row style="margin-top:8px"><div style=flex:1><div class=mu>Balance due</div><b class="${bal>0?'err':''}">${money(bal)}</b></div><div style=flex:1><div class=mu>Last order</div><b>${last?new Date(last.at).toLocaleDateString():'none'}</b>${last?`<div class=mu>${money(last.total)}</div>`:''}</div></div>
- ${rem.length?`<div class=err>${rem.map(r=>esc(r.text)).join('; ')}</div>`:''}</div>
+ ${rem.length?`<div class=err data-a=remv style="cursor:pointer">${rem.map(r=>esc(r.text)).join('; ')} (tap to manage)</div>`:''}</div>
  ${b('in','Check in','grn')}${b('ledger','Open ledger')}${b('shelf','Shelf Check','')}${b('order','New order','')}
- ${b('pay','Collect payment')}${b('ret','Return')}${b('hist','Sales history')}${b('nav','Navigate')}`;
+ ${b('pay','Collect payment')}${b('ret','Return')}${b('remv','Reminders')}${b('hist','Sales history')}${b('nav','Navigate')}`;
  $('#px').onclick=closeOv;
  m.onclick=e=>{const a=e.target.dataset.a;if(!a)return;
-  if(a=='in')return checkIn(c);if(a=='ledger')return ledgerView(c);if(a=='hist')return custHistory(c);if(a=='nav')return c.lat?open(`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`):alert('No saved location.');
+  if(a=='in')return checkIn(c);if(a=='ledger')return ledgerView(c);if(a=='hist')return custHistory(c);if(a=='remv')return remView(c);if(a=='nav')return c.lat?open(`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`):alert('No saved location.');
   closeOv();if(a=='shelf')shelfStart(c);if(a=='order')orderStart(c);if(a=='pay')collectPay(c);if(a=='ret')returnStart(c)};
 }
 /* ---- ranking ---- */
@@ -74,4 +74,34 @@ function startNearby(){
   bar.innerHTML=n.map(x=>`<div class=row style="margin:3px 0"><div style=flex:1><b>You're near ${esc(x.c.nameEn)}</b><div class=mu>${x.d} m away</div></div><button class="b s" data-o=${x.c.id}>Open</button><button class="b s ghost" data-x=${x.c.id}>X</button></div>`).join('');
   bar.onclick=e=>{const d=e.target.dataset;if(d.o){bar.remove();profileView(CUST.find(c=>c.id==d.o))}if(d.x){NB.dis[d.x]=Date.now()+30*6e4;bar.remove()}};
  },()=>{NB.on=0},{enableHighAccuracy:true,maximumAge:15000,timeout:20000});
+}
+
+/* reminders: edit, delete, show-from and hide-after dates */
+const remState=r=>{const t=todayD();return r.done?'done':r.from&&r.from>t?'scheduled':r.until&&r.until<t?'expired':'active'};
+const remActive=r=>remState(r)=='active',REMT=['Bill / document','Product','Order call','Other'];
+function startRem(){if(!rUnsub)rUnsub=(ME.role=='admin'?db.collection('reminders'):db.collection('reminders').where('uid','==',U.uid)).onSnapshot(s=>{REM=s.docs.map(d=>({id:d.id,...d.data()}));drawCust();window.remRedraw&&remRedraw()},()=>{rUnsub=null})}
+const remCard=r=>{const st=remState(r),col={active:'rejected',scheduled:'admin',expired:'disabled',done:'approved'}[st];
+ return `<div class=card style="${st=='expired'||st=='done'?'opacity:.7':''}"><div class=row><b style=flex:1>${esc(r.cname||'')}</b><span class="tag ${col}">${st}</span></div><div>${esc(r.text)}</div>
+ <div class=mu>${esc(r.type||'Other')}, shows from ${r.from||r.due||'today'}${r.until?', hides after '+r.until:', no end date'}</div>
+ <button class="b s ghost" data-r=edit data-id=${r.id}>Edit</button><button class="b s red" data-r=del data-id=${r.id}>Delete</button><button class="b s ${r.done?'ghost':'grn'}" data-r=done data-id=${r.id}>${r.done?'Reopen':'Done'}</button></div>`};
+const remAct=e=>{const d=e.target.dataset;if(!d.r)return;const r=REM.find(x=>x.id==d.id);if(!r)return;
+ if(d.r=='del'&&confirm('Delete this reminder?'))db.doc('reminders/'+r.id).delete();
+ if(d.r=='done')db.doc('reminders/'+r.id).update({done:!r.done});
+ if(d.r=='edit')remForm(CUST.find(c=>c.id==r.cid)||{id:r.cid,nameEn:r.cname},r)};
+const remSort=a=>{const o={active:0,scheduled:1,expired:2,done:3};return a.slice().sort((x,y)=>o[remState(x)]-o[remState(y)]||(x.from||x.due||'').localeCompare(y.from||y.due||''))};
+function remTab(b){startRem();b.innerHTML=remSort(REM).map(remCard).join('')||'<div class=card>No reminders yet. Open a customer and tap Reminder.</div>';b.onclick=remAct}
+function remView(c){startRem();OV=()=>remView(c);window.remRedraw=()=>$('#rmv')&&remView(c);const m=ov();
+ m.innerHTML=`<div id=rmv><div class=row style="padding:8px 0"><h2 style=flex:1>Reminders: ${esc(c.nameEn)}</h2><button class="b s ghost" id=rvx>Close</button></div><button class=b id=rva>Add reminder</button>${remSort(REM.filter(r=>r.cid==c.id)).map(remCard).join('')||'<div class=card>No reminders for this customer.</div>'}</div>`;
+ $('#rvx').onclick=closeOv;$('#rva').onclick=()=>remForm(c);m.onclick=remAct}
+function remForm(c,r){
+ const w=document.createElement('div');w.style.cssText='position:fixed;inset:0;background:var(--bg);overflow:auto;z-index:30;padding:12px;padding-top:calc(12px + env(safe-area-inset-top))';
+ w.innerHTML=`<div class=wrap><h2>${r?'Edit':'New'} reminder: ${esc(c.nameEn||'')}</h2><label class=mu>What to remember</label><textarea id=rt rows=3 style="width:100%;padding:10px;border:1.5px solid var(--bd);border-radius:12px;background:var(--card);color:var(--tx);font:inherit">${esc(r?r.text:'')}</textarea>
+ <label class=mu>Type</label><select id=ry>${REMT.map(x=>`<option ${r&&r.type==x?'selected':''}>${x}</option>`).join('')}</select>
+ <label class=mu>Show from</label><input type=date id=rf value="${(r&&(r.from||r.due))||todayD()}"><label class=mu>Hide after (empty = keep showing until done)</label><input type=date id=ru value="${(r&&r.until)||''}">
+ <p class=err id=re></p><button class=b id=rs>Save reminder</button><button class="b ghost" id=rc>Cancel</button></div>`;
+ document.body.appendChild(w);$('#rc').onclick=()=>w.remove();
+ $('#rs').onclick=()=>{const t=$('#rt').value.trim(),f=$('#rf').value||todayD(),u=$('#ru').value;if(!t)return $('#re').textContent='Write the reminder.';if(u&&u<f)return $('#re').textContent='"Hide after" cannot be before "Show from".';
+  const d={text:t,type:$('#ry').value,from:f,until:u,due:f};
+  if(r)db.doc('reminders/'+r.id).update(d);else db.collection('reminders').add({...d,cid:c.id,cname:c.nameEn||c.nameAr,uid:U.uid,by:ME.name,done:false,at:Date.now()});
+  w.remove()};
 }
