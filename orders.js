@@ -12,7 +12,7 @@ function loadData(){
 function stats(cid){const fast={},cust={};ORDS.filter(o=>o.status!='cancelled').forEach(o=>(o.lines||[]).forEach(l=>{fast[l.pid]=(fast[l.pid]||0)+1;if(cid&&o.cid==cid){const x=cust[l.pid]||(cust[l.pid]={n:0,q:0,unit:'pcs'});x.n++;x.q+=l.qty;x.unit=l.unit}}));return{fast,cust}}
 function ov(){let m=$('#ov');if(!m){m=document.createElement('div');m.id='ov';m.style.cssText='position:fixed;inset:0;background:var(--bg);overflow:auto;z-index:20;padding:0 12px 90px;padding-top:calc(8px + env(safe-area-inset-top))';document.body.appendChild(m)}return m}
 const closeOv=()=>{const m=$('#ov');m&&m.remove();OV=null;window.ordersRedraw&&$('#ow')&&ordersRedraw()};
-const mkLine=(p,unit,qty,st)=>({pid:p.id,sl:p.sl||'',name:p.name,unit,qty,rate:+(p.rate*pu(p,unit)).toFixed(2),edited:false,st:st||''});
+const mkLine=(p,unit,qty,st)=>({pid:p.id,sl:p.sl||'',name:p.name,unit,qty,rate:+(p.rate*pu(p,unit)).toFixed(2),edited:false,fresh:qty==1&&!st,st:st||''});
 const byCode=c=>{const p=PRODS.find(p=>(p.bcs||[]).includes(c));return p?{p,unit:Object.keys(p.units||{}).find(k=>p.units[k]&&p.units[k].bc==c)||'pcs'}:null};
 /* ---- entry points ---- */
 function ordersHome(el,member){
@@ -20,12 +20,12 @@ function ordersHome(el,member){
  const draft=localStorage.getItem(dKey()),dr=draft&&JSON.parse(draft);
  const draw=()=>{el.innerHTML=`${member?'<button class="b s ghost" onclick="sig=\'\';route()">Back</button>':''}
  <button class="b s" id=ow>New walk-in order</button>${dr&&dr.lines.length?'<button class="b s grn" id=or>Resume draft ('+dr.lines.length+' lines)</button>':''}
- ${openHtml()}<h2 style="margin-top:10px">Bills and orders</h2>`+(ORDS.length?ORDS.slice(0,60).map(o=>`<div class=card><div class=row><b style=flex:1>#${esc(o.no)} ${esc(o.cname||'Walk-in')}</b><span class="tag ${o.status=='cancelled'?'rejected':'approved'}">${o.status}</span></div>
+ ${openHtml()}<h2 style="margin-top:10px">Bills and orders</h2>`+(ORDS.length?ORDS.slice(0,60).map(o=>`<div class=card><div class=row data-a=bill data-id=${o.id} style="cursor:pointer"><b style=flex:1>#${esc(o.no)} ${esc(o.cname||'Walk-in')}</b><span class="tag ${o.status=='cancelled'?'rejected':'approved'}">${o.status=='sent'?'billed':o.status}</span></div>
  <div class=mu>${new Date(o.at).toLocaleString()}, ${o.lines.length} lines, ${money(o.total)} with VAT, ${o.pay}${ME.role=='admin'?', '+esc(o.by):''}</div>${o.reason?`<div class=err>${esc(o.reason)}</div>`:''}
  <button class="b s ghost" data-a=bill data-id=${o.id}>Bill</button><button class="b s ghost" data-a=share data-id=${o.id}>Share</button><button class="b s ghost" data-a=rep data-id=${o.id}>Repeat</button>
  ${o.status=='sent'&&(ME.role=='admin'||(ME.perms&&ME.perms.cancelSent))?`<button class="b s red" data-a=can data-id=${o.id}>Cancel order</button>`:''}</div>`).join(''):'<div class=card>No orders yet.</div>');
  if($('#ow'))$('#ow').onclick=()=>orderStart(null);if($('#or'))$('#or').onclick=()=>{OD=dr;orderView()};
- el.onclick=async e=>{const d=e.target.dataset,o=ORDS.find(x=>x.id==d.id)||OPEN.find(x=>x.id==d.id);if(!d.a)return;
+ el.onclick=async e=>{const t=e.target.closest('[data-a]');if(!t)return;const d=t.dataset,o=ORDS.find(x=>x.id==d.id)||OPEN.find(x=>x.id==d.id);
   if(d.a=='bill')return billView(o);
   if(d.a=='open'){const cu=CUST.find(c=>c.id==o.cid);OD={cust:cu?{id:cu.id,nameEn:cu.nameEn,nameAr:cu.nameAr,phone:cu.phone}:null,walk:{name:o.cname,phone:o.phone||''},lines:o.lines.map(l=>({...l,st:''})),pay:o.pay,note:o.note||'',budget:0,sel:[],hl:[],openId:o.id,no:o.no,orderedAt:o.orderedAt||o.at};return orderView()}
   if(d.a=='cano'){const r=prompt('Reason for cancelling open order #'+o.no);if(r)await db.doc('orders/'+o.id).update({status:'cancelled',reason:r,cancelledBy:ME.name,cancelledAt:Date.now()});return}
@@ -84,7 +84,7 @@ function orderView(){
  <div class=card><div class=row><span style=flex:1>Subtotal</span><b>${money(sub)}</b></div><div class=row><span style=flex:1>VAT ${vp}%</span><b>${money(vat)}</b></div><div class=row><span style=flex:1><b>Total</b></span><b style="font-size:20px">${money(tot)}</b></div>
  <input id=obu type=number placeholder="Customer budget (optional)" value="${OD.budget||''}">${OD.budget&&tot>OD.budget?'<button class="b s" id=ofit>Auto-fit to budget</button>':''}${OD.budget?`<p class="${tot>OD.budget?'err':'mu'}">${tot>OD.budget?'Over budget by '+money(tot-OD.budget)+'. Reduce the lowest priority lines (bottom of the list).':'Within budget, '+money(OD.budget-tot)+' left.'}</p>`:''}
  <select id=opy><option value=cash ${OD.pay=='cash'?'selected':''}>Cash</option><option value=credit ${OD.pay=='credit'?'selected':''}>Credit</option></select><input id=ono placeholder="Order note" value="${esc(OD.note)}"></div>
- <button class=b id=osd>${OD.openId?'Convert to bill now':'Make bill now'}</button><button class="b ghost" id=oop>Save as open order (deliver later)</button><button class="b ghost red" id=oca style="color:var(--rd)">Cancel entire order</button>
+ <button class=b id=osd>${OD.openId?'Convert to bill now':'Make bill now'}</button><button class="b ghost" id=oop>Save as open order (deliver later)</button><button class="b ghost" id=oca style="color:var(--rd);border-color:var(--rd)">Cancel entire order</button>
  <div id=undo></div>`;
  if(UNDO)showUndo();
  const hl=()=>{if(OD.hl.length){const e=document.querySelector('[id^=l_]');setTimeout(()=>{OD.hl=[];},3000)}};hl();
@@ -98,10 +98,10 @@ function orderView(){
  const meta=()=>{if($('#wn')){OD.walk.name=$('#wn').value;OD.walk.phone=$('#wp').value}OD.pay=$('#opy').value;OD.note=$('#ono').value;saveD()};
  m.onchange=e=>{const d=e.target.dataset;if(!d.a){if(e.target.id=='obu'){OD.budget=+e.target.value||0;saveD();return orderView()}return meta()}
   const l=OD.lines[d.i];if(d.a=='sel')OD.sel=e.target.checked?[...OD.sel,+d.i]:OD.sel.filter(x=>x!=d.i);
-  if(d.a=='qty')l.qty=Math.max(1,Math.round(+e.target.value)||1);if(d.a=='rate'&&canRate()){l.rate=+e.target.value||l.rate;l.edited=true}
+  if(d.a=='qty'){l.qty=Math.max(1,Math.round(+e.target.value)||1);l.fresh=false}if(d.a=='rate'&&canRate()){l.rate=+e.target.value||l.rate;l.edited=true}
   saveD();orderView()};
  m.onclick=async e=>{const d=e.target.dataset;if(!d.a||d.a=='sel'||d.a=='qty'||d.a=='rate')return;const l=OD.lines[d.i];
-  if(d.a=='add'){l.qty+=+d.n}
+  if(d.a=='add'){l.qty=(l.fresh&&l.qty==1)?+d.n:l.qty+ +d.n;l.fresh=false;saveD();const qi=m.querySelector('input[data-a=qty][data-i="'+d.i+'"]');if(qi)qi.value=l.qty;clearTimeout(window.rrT);window.rrT=setTimeout(orderView,350);return}
   if(d.a=='unit'){const p=PRODS.find(x=>x.id==l.pid);if(!p)return;const av=avail(p),nx=av[(av.indexOf(l.unit)+1)%av.length],o=OD.lines.findIndex((x,j)=>j!=d.i&&x.pid==l.pid&&x.unit==nx);
    if(o>=0){if(!confirm('A '+nx+' line already exists. Merge them?'))return;OD.lines[o].qty+=l.qty;OD.lines.splice(d.i,1)}else{l.unit=nx;l.rate=+(p.rate*pu(p,nx)).toFixed(2);l.edited=false}}
   if(d.a=='del'){if(!confirm('Remove "'+l.name+'"?'))return;UNDO={l,i:+d.i,t:setTimeout(()=>{UNDO=null;const u=$('#undo');u&&(u.innerHTML='')},10000)};OD.lines.splice(d.i,1);OD.sel=[]}
@@ -126,7 +126,7 @@ async function sendOrder(sub,vat,tot,vp,asOpen){
  if(!asOpen&&dayLocked())return;
  if(!OD.lines.length)return alert('Add at least one product.');
  const n=(+localStorage.getItem('ordn_'+U.uid)||0)+1,no=ME.name.replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase()+n,c=OD.cust;
- const o={no:(OD.openId&&OD.no)||no,cid:c?c.id:'',cname:c?c.nameEn:(OD.walk.name||'Walk-in'),cnameAr:c?c.nameAr:'',phone:c?c.phone:OD.walk.phone,lines:OD.lines.map(l=>({...l,total:+(l.qty*l.rate).toFixed(2)})),sub,vatPct:vp,vat,total:tot,pay:OD.pay,note:OD.note,budget:OD.budget,uid:U.uid,by:ME.name,branch:ME.branch||'',at:Date.now(),status:asOpen?'open':'sent',orderedAt:OD.orderedAt||Date.now()};
+ const o={no:(OD.openId&&OD.no)||no,cid:c?c.id:'',cname:c?c.nameEn:(OD.walk.name||'Walk-in'),cnameAr:c?c.nameAr:'',phone:c?c.phone:OD.walk.phone,lines:OD.lines.map(l=>({...l,fresh:false,total:+(l.qty*l.rate).toFixed(2)})),sub,vatPct:vp,vat,total:tot,pay:OD.pay,note:OD.note,budget:OD.budget,uid:U.uid,by:ME.name,branch:ME.branch||'',at:Date.now(),status:asOpen?'open':'sent',orderedAt:OD.orderedAt||Date.now()};
  try{(OD.openId?db.doc('orders/'+OD.openId).update(o):db.collection('orders').add(o));if(c&&!asOpen)db.doc('customers/'+c.id).update({lead:false}).catch(()=>{});if(o.lines.some(l=>l.edited))logAct('Rate edited in order','#'+no+', '+o.cname);if(!(OD.openId&&OD.no))localStorage.setItem('ordn_'+U.uid,n)}catch(e){return alert(e.message)}
  OD=null;localStorage.removeItem(dKey());closeOv();if(asOpen)alert('Saved as an open order. It is in Orders to deliver and does not count in sales until you make the bill.');else billView(o);if(window.ordersRedraw)ordersRedraw();
 }
@@ -138,7 +138,7 @@ function waLink(o){let p=ph(o.phone||'');return 'https://wa.me/'+(p?'966'+p.slic
 /* open orders (deliver later) and the printable bill */
 const openHtml=()=>{const L=OPEN.filter(o=>ME.role=='admin'||o.uid==U.uid);if(!L.length)return '';const lim=(CFG.openDays||3)*864e5;
  return `<h2 style="margin-top:10px">Orders to deliver (${L.length})</h2>`+L.map(o=>{const ms=Date.now()-(o.orderedAt||o.at),age=Math.floor(ms/864e5);
-  return `<div class=card style="border-color:${ms>lim?'var(--rd)':'var(--or)'}"><div class=row><b style=flex:1>#${esc(o.no)} ${esc(o.cname||'Walk-in')}</b><span class="tag pending">open</span></div><div class=mu>${o.lines.length} lines, about ${money(o.total)} with VAT, ${age} day${age==1?'':'s'} old${ms>lim?', overdue':''}${ME.role=='admin'?', '+esc(o.by):''}</div><button class="b s grn" data-a=open data-id=${o.id}>Deliver and bill</button><button class="b s red" data-a=cano data-id=${o.id}>Cancel</button></div>`}).join('')};
+  return `<div class=card style="border-color:${ms>lim?'var(--rd)':'var(--or)'}"><div class=row data-a=open data-id=${o.id} style="cursor:pointer"><b style=flex:1>#${esc(o.no)} ${esc(o.cname||'Walk-in')}</b><span class="tag pending">to deliver</span></div><div class=mu>${o.lines.length} lines, about ${money(o.total)} with VAT, ${age} day${age==1?'':'s'} old${ms>lim?', overdue':''}${ME.role=='admin'?', '+esc(o.by):''}</div><button class="b s grn" data-a=open data-id=${o.id}>Deliver and bill</button><button class="b s red" data-a=cano data-id=${o.id}>Cancel</button></div>`}).join('')};
 function billView(o){
  OV=null;const m=ov(),rw=(a,b,x)=>`<div style="display:flex;justify-content:space-between;${x||''}"><span>${a}</span><span>${b}</span></div>`;
  m.innerHTML=`<div class=wrap><div class=noprint><button class="b s ghost" id=bx>Close</button></div><div class=card style="background:#fff;color:#000;border-color:#ccc"><h2 style="text-align:center">SALES BILL</h2><div style="text-align:center;font-size:12px">Not a tax invoice</div><hr>
