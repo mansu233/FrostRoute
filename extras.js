@@ -3,22 +3,24 @@ let NB={on:0,last:0,dis:{}};
 const rnd=n=>Math.round(n*100)/100;
 function custBal(cid){
  const o=sum(ORDS.filter(x=>x.cid==cid&&x.status!='cancelled'&&x.pay=='credit'),'total'),p=sum(PAY.filter(x=>x.cid==cid),'amount'),
-  r=sum(RET.filter(x=>x.cid==cid&&x.refund=='credit'&&x.status!='cancelled'),'total');return rnd(o-p-r);
+  r=sum(RET.filter(x=>x.cid==cid&&x.refund=='credit'&&x.status!='cancelled'),'total');const cu=CUST.find(x=>x.id==cid);return rnd((cu&&+cu.opening||0)+o-p-r);
 }
 function ledgerRows(cid){
  const e=[];
- ORDS.filter(x=>x.cid==cid&&x.status!='cancelled').forEach(o=>e.push({t:o.at,type:`Order #${o.no} (${o.pay})`,dr:o.pay=='credit'?o.total:0,cr:0,info:o.pay=='cash'?'paid in cash':''}));
+ ORDS.filter(x=>x.cid==cid&&x.status!='cancelled').forEach(o=>{e.push({t:o.at,type:`Bill #${o.no}`,dr:o.total,cr:0,info:o.pay});if(o.pay=='cash')e.push({t:o.at+1,type:'Cash received with bill',dr:0,cr:o.total,info:''})});
  PAY.filter(x=>x.cid==cid).forEach(p=>e.push({t:p.at,type:`Payment (${p.method})`,dr:0,cr:p.amount,info:''}));
  RET.filter(x=>x.cid==cid&&x.status!='cancelled').forEach(r=>e.push({t:r.at,type:`Return #${r.no} (${r.refund})`,dr:0,cr:r.refund=='credit'?r.total:0,info:r.refund!='credit'?'no balance effect':''}));
+ {const cu=CUST.find(x=>x.id==cid),op=cu&&+cu.opening||0;if(op)e.push({t:0,type:'Opening balance',dr:op>0?op:0,cr:op<0?-op:0,info:''})}
  e.sort((a,b)=>a.t-b.t);let b=0;e.forEach(x=>{b+=x.dr-x.cr;x.bal=rnd(b)});return e;
 }
 function ledgerView(c){
- OV=()=>ledgerView(c);const m=ov(),rows=ledgerRows(c.id).reverse(),bal=custBal(c.id);
+ OV=()=>ledgerView(c);const m=ov(),rows=ledgerRows(c.id).reverse(),bal=custBal(c.id),tdr=sum(rows,'dr'),tcr=sum(rows,'cr');
  m.innerHTML=`<div class=row style="padding:8px 0"><h2 style=flex:1>Ledger: ${esc(c.nameEn)}</h2><button class="b s ghost" id=lx>Close</button></div>
- <div class=card><div class=mu>Balance due</div><div style="font-size:26px;font-weight:700" class="${bal>0?'err':''}">${money(bal)} SAR</div><div class=mu>Credit orders minus payments and credit notes</div></div>
+ <div class=card><div class=mu>Balance due</div><div style="font-size:26px;font-weight:700" class="${bal>0?'err':''}">${money(bal)} SAR</div><div class=mu>Statement: bills are debit, payments and credit notes are credit</div></div>
+ <div class=card><div class=row><span style=flex:1>Total debit (bills)</span><b>${money(tdr)}</b></div><div class=row><span style=flex:1>Total credit (payments, returns)</span><b>${money(tcr)}</b></div><button class="b s" id=lsh>Share statement</button></div>
  ${rows.map(r=>`<div class=card><div class=row><b style=flex:1>${esc(r.type)}</b><span>${r.dr?'+'+money(r.dr):r.cr?'-'+money(r.cr):'0.00'}</span></div>
  <div class=mu>${new Date(r.t).toLocaleString()} ${r.info?', '+r.info:''}</div><div class=mu>Running balance ${money(r.bal)}</div></div>`).join('')||'<div class=card>No entries yet.</div>'}`;
- $('#lx').onclick=closeOv;
+ $('#lx').onclick=closeOv;$('#lsh').onclick=()=>open('https://wa.me/'+(c.phone?'966'+ph(c.phone).slice(1):'')+'?text='+encodeURIComponent(`*STATEMENT* ${c.nameEn}\n`+rows.slice().reverse().map(r=>`${new Date(r.t||Date.now()).toLocaleDateString('en-GB')} ${r.type}: ${r.dr?'+'+money(r.dr):'-'+money(r.cr)} = ${money(r.bal)}`).join('\n')+`\n*Balance due: ${money(bal)}*`));
 }
 /* ---- customer profile (opened from the nearby popup or the card) ---- */
 function profileView(c){
@@ -68,11 +70,11 @@ function startNearby(){
  if(NB.on||!navigator.geolocation||!(ME.role=='admin'||(ME.perms&&ME.perms.manageCustomers)))return;NB.on=1;loadCash();
  navigator.geolocation.watchPosition(p=>{
   if(!unlocked||Date.now()-NB.last<20000)return;NB.last=Date.now();
-  const n=CUST.filter(c=>c.lat).map(c=>({c,d:hav(p.coords.latitude,p.coords.longitude,c.lat,c.lng)})).filter(x=>x.d<=(CFG.gpsRadius||150)&&!(NB.dis[x.c.id]>Date.now())).sort((a,b)=>a.d-b.d).slice(0,3);
+  const n=CUST.filter(c=>c.lat).map(c=>({c,d:hav(p.coords.latitude,p.coords.longitude,c.lat,c.lng)})).filter(x=>x.d<=(CFG.gpsRadius||150)&&!(NB.dis[x.c.id]>Date.now())).sort((a,b)=>a.d-b.d).slice(0,2);
   let bar=$('#nb');if(!n.length){bar&&bar.remove();return}
   if(!bar){bar=document.createElement('div');bar.id='nb';bar.style.cssText='position:fixed;left:10px;right:10px;top:calc(8px + env(safe-area-inset-top));z-index:40;background:var(--card);border:2px solid var(--pr);border-radius:12px;padding:10px;box-shadow:0 6px 20px rgba(0,0,0,.25)';document.body.appendChild(bar)}
-  bar.innerHTML=n.map(x=>`<div class=row style="margin:3px 0"><div style=flex:1><b>You're near ${esc(x.c.nameEn)}</b><div class=mu>${x.d} m away</div></div><button class="b s" data-o=${x.c.id}>Open</button><button class="b s ghost" data-x=${x.c.id}>X</button></div>`).join('');
-  bar.onclick=e=>{const d=e.target.dataset;if(d.o){bar.remove();profileView(CUST.find(c=>c.id==d.o))}if(d.x){NB.dis[d.x]=Date.now()+30*6e4;bar.remove()}};
+  bar.innerHTML=n.map(x=>`<div class="row nbr" style="margin:3px 0"><div style=flex:1><b>You're near ${esc(x.c.nameEn)}</b><div class=mu>${x.d} m away</div></div><button class="b s" data-o=${x.c.id}>Open</button><button class="b s ghost" data-x=${x.c.id}>X</button></div>`).join('');
+  bar.onclick=e=>{const d=e.target.dataset;if(d.o){bar.remove();profileView(CUST.find(c=>c.id==d.o))}if(d.x){NB.dis[d.x]=Date.now()+30*6e4;const rw=e.target.closest('.nbr');rw&&rw.remove();if(!bar.querySelector('.nbr'))bar.remove()}};
  },()=>{NB.on=0},{enableHighAccuracy:true,maximumAge:15000,timeout:20000});
 }
 
@@ -104,4 +106,21 @@ function remForm(c,r){
   const d={text:t,type:$('#ry').value,from:f,until:u,due:f};
   if(r)db.doc('reminders/'+r.id).update(d);else db.collection('reminders').add({...d,cid:c.id,cname:c.nameEn||c.nameAr,uid:U.uid,by:ME.name,done:false,at:Date.now()});
   w.remove()};
+}
+
+/* weekly customer view: Saturday first, holiday day left out */
+const WDAYS=[6,0,1,2,3,4,5];
+function weekView(el){
+ const days=CV.wd||30,from=Date.now()-days*864e5,hol=CFG.holiday??5,sel=CV.wsel||'all',now=Date.now();
+ const R=CUST.map(c=>{const os=ORDS.filter(o=>o.cid==c.id&&o.status!='cancelled'),a=os.filter(o=>o.at>=from),p=os.filter(o=>o.at<from&&o.at>=from-days*864e5);
+  return {c,sale:sum(a,'total'),n:a.length,prev:sum(p,'total'),last:os.length?Math.max(...os.map(o=>o.at)):0,bal:custBal(c.id),g:c.visitType=='monthly'?'m':c.day}});
+ const G=k=>k=='all'?R:R.filter(r=>r.g==k),S=a=>sum(a,'sale'),nm=a=>a.map(r=>esc(r.c.nameEn)).join(', ')||'none',tot=S(R),ord=R.filter(r=>r.n>0).length;
+ const chase=R.filter(r=>!r.last||now-r.last>30*864e5).slice(0,5),drop=R.filter(r=>r.prev>0&&r.sale<r.prev*.8).slice(0,5),dues=R.filter(r=>r.bal>0).sort((a,b)=>b.bal-a.bal).slice(0,3);
+ const L=G(sel).slice().sort((a,b)=>b.sale-a.sale),row=(l,v)=>`<div class=row><span style=flex:1>${l}</span><b>${v}</b></div>`;
+ el.innerHTML=`<div class=row>${[7,30,90].map(d=>`<button class="b s ${d==days?'':'ghost'}" data-wd=${d}>${d} days</button>`).join('')}</div>
+ <div class=card>${row('Customers',R.length)}${row('Total purchases',money(tot))}${row('Average per customer',money(R.length?tot/R.length:0))}${row('Ordered in this period',(R.length?Math.round(ord/R.length*100):0)+'%')}${row('Balance due',money(sum(R,'bal')))}</div>
+ <div class=row style="flex-wrap:wrap"><button class="b s ${sel=='all'?'':'ghost'}" data-ws=all>All</button>${[...WDAYS.filter(d=>d!=hol),'m'].map(k=>{const g=G(k);return `<button class="b s ${sel==k?'':'ghost'}" data-ws=${k}>${k=='m'?'Monthly':DAYS[k].slice(0,3)}: ${g.length} / ${Math.round(S(g))}</button>`}).join('')}</div>
+ <div class=card><b>Where to push</b><div class=mu style="margin-top:6px">No order in 30 days: ${nm(chase)}</div><div class=mu>Ordering less than before: ${nm(drop)}</div><div class=mu>New leads without a first order: ${R.filter(r=>r.c.lead).length}</div><div class=mu>Highest balance due: ${dues.map(r=>esc(r.c.nameEn)+' '+money(r.bal)).join(', ')||'none'}</div></div>
+ ${L.map((r,i)=>`<div class=card data-c=${r.c.id} style="cursor:pointer"><div class=row><b style=width:30px>${i+1}</b><div style=flex:1><b>${esc(r.c.nameEn)}</b><div class=mu>${r.n} bills, last ${r.last?new Date(r.last).toLocaleDateString():'never'}${r.bal>0?', due '+money(r.bal):''}</div></div><b>${money(r.sale)}</b></div></div>`).join('')||'<div class=card>No customers on this day.</div>'}`;
+ el.onclick=e=>{const d=e.target.dataset,c=e.target.closest('[data-c]');if(d.wd){CV.wd=+d.wd;return weekView(el)}if(d.ws!==undefined){CV.wsel=d.ws=='all'||d.ws=='m'?d.ws:+d.ws;return weekView(el)}if(c)profileView(CUST.find(x=>x.id==c.dataset.c))};
 }

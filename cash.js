@@ -50,7 +50,7 @@ function closingView(el,member){
  loadCash();const day=todayD(),mc=ME.role=='admin'||(ME.perms&&ME.perms.moneyCounter);let c,cl,tot,hand;
  const row=(l,v,b)=>`<div class=row><span style=flex:1>${l}</span>${b?`<b>${money(v)}</b>`:money(v)}</div>`;
  const draw=()=>{c=calc(U.uid,day);cl=CLS.find(x=>x.id==U.uid+'_'+day);tot=DENOMS.reduce((s,d)=>s+d*(CNT[d]||0),0);hand=Math.round(c.hand*100)/100;const counted=cl?cl.counted:(CNT.manual!==undefined&&CNT.manual!==''?+CNT.manual:tot),diff=Math.round((counted-hand)*100)/100;
- el.innerHTML=`<div id=cw2>${member?'<button class="b s ghost" onclick="sig=\'\';route()">Back</button>':''}<h2>Day closing, ${day}</h2>
+ el.innerHTML=`<div id=cw2>${member?'<button class="b s ghost" onclick="sig=\'\';route()">Back</button>':''}<h2>Day closing, ${day}</h2>${(()=>{const k=OPEN.filter(o=>o.uid==U.uid).length;return k?`<div class=card style="border-color:var(--or)">${k} open order${k>1?'s':''} not billed yet. They do not count in today's sales.</div>`:''})()}
  <div class=card>${row('Total sale ('+c.n+' orders)',c.sale)}${row('Sales return','-'+money(c.ret).replace('-',''),0)}${row('Net sale',c.net,1)}<hr>
  ${row('Cash received',c.recv)}<div class=mu>cash sales ${money(c.cash)}, old balance collected ${money(c.old)}, bank/card ${money(c.bank)}</div>
  ${row('Cash return',c.cr)}${row('Balance (uncollected)',c.bal)}${row('Expense',c.e)}<hr>${row('Cash to hand over',hand,1)}</div>

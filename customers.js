@@ -44,7 +44,7 @@ function dueToday(c){
 /* ---- main view ---- */
 function customersView(el,member){
  el.innerHTML=`${member?'<button class="b s ghost" onclick="sig=\'\';route()">Back</button>':''}
- <div class=tabs>${['today','all','rem',...(member&&!(ME.perms&&ME.perms.viewRanking)?[]:['rank'])].map(k=>`<button data-t=${k} class="${CV.tab==k?'on':''}">${{today:'Today',all:'All customers',rem:'Reminders',rank:'Ranking'}[k]}</button>`).join('')}</div>
+ <div class=tabs>${['today','all','week','rem',...(member&&!(ME.perms&&ME.perms.viewRanking)?[]:['rank'])].map(k=>`<button data-t=${k} class="${CV.tab==k?'on':''}">${{today:'Today',all:'All customers',rem:'Reminders',rank:'Ranking',week:'Weekly'}[k]}</button>`).join('')}</div>
  <div id=cb></div>`;
  el.querySelector('.tabs').onclick=e=>{if(e.target.dataset.t){CV.tab=e.target.dataset.t;customersView(el,member)}};
  loadCash();
@@ -52,7 +52,7 @@ function customersView(el,member){
  drawCust();
 }
 function drawCust(){
- const b=$('#cb');if(!b)return;const admin=ME.role=='admin';if(CV.tab=='rank')return rankView(b);
+ const b=$('#cb');if(!b)return;const admin=ME.role=='admin';if(CV.tab=='rank')return rankView(b);if(CV.tab=='week')return weekView(b);
  if(CV.tab=='rem')return remTab(b);
  let a=CUST.slice();const q=CV.q.toLowerCase(),qd=ph(CV.q);
  if(CV.tab=='today'){a=a.filter(dueToday)}
@@ -92,7 +92,7 @@ async function custForm(c){
  m.innerHTML=`<div class=wrap><h2>${c.id?'Edit':'Add'} customer</h2>
  <img id=c_pv src="${c.photo||''}" style="display:${c.photo?'block':'none'};width:100%;max-height:220px;object-fit:cover;border-radius:14px;margin:6px 0"><div class=row><button class="b ghost" id=c_cam type=button>Shop photo: take</button><button class="b ghost" id=c_gl type=button>From gallery</button></div><input id=c_file type=file accept="image/*" capture=environment hidden><input id=c_gal type=file accept="image/*" hidden>
  ${f('en','Shop name (English)',c.nameEn)}${f('ar','Shop name (Arabic)',c.nameAr,'dir=rtl')}${f('code','Customer code',c.code)}${f('vat','VAT No',c.vat)}${f('cr','CR No (س.ت)',c.cr)}
- ${f('ph','Phone (required)',c.phone,'inputmode=tel')}${f('sup','Supervisor name',c.sup)}${f('ad','Address (English, required)',c.address)}
+ ${f('ph','Phone (required)',c.phone,'inputmode=tel')}${f('sup','Supervisor name',c.sup)}${f('ad','Address (English, required)',c.address)}${f('op','Opening balance: amount owed before the app (optional)',c.opening||'','inputmode=decimal')}
  <label class=mu>Visit</label><select id=c_vt><option value=weekly>Weekly</option><option value=skip>Weekly, can skip a week</option><option value=monthly>Monthly (app picks the day)</option></select>
  <select id=c_day>${DAYS.map((d,i)=>`<option value=${i}>${d}</option>`).join('')}</select>
  <p class=mu id=c_loc>${c.lat?'Location saved (±'+(c.acc||'?')+' m)':'Getting GPS location…'}</p><button class="b s ghost" id=c_rl type=button>Retake location</button>
@@ -114,7 +114,7 @@ async function custForm(c){
   const dup=oth.filter(x=>(vat&&x.vat==vat)||(cr&&x.cr==cr)||x.phone==phone);
   if(dup.length){if(!code)return er('Possible duplicate of '+dup[0].nameEn+'. Add a different customer code to save it as another shop.');
    if(!confirm('Possible duplicate of '+dup[0].nameEn+' (same VAT, CR or phone). Save anyway as a different shop?'))return}
-  const d={nameEn:en,nameAr:ar,code,vat,cr,phone,sup:g('sup'),address:ad,photo:SP||c.photo||'',visitType:$('#c_vt').value,day:+$('#c_day').value,updatedAt:Date.now()};
+  const d={nameEn:en,nameAr:ar,code,vat,cr,phone,sup:g('sup'),address:ad,photo:SP||c.photo||'',opening:+dg(g('op'))||0,visitType:$('#c_vt').value,day:+$('#c_day').value,updatedAt:Date.now()};
   if(pos){d.lat=pos.lat;d.lng=pos.lng;d.acc=pos.acc}
   if(!c.id){d.owner=U.uid;d.ownerName=ME.name;d.createdAt=Date.now();d.lead=true}
   try{await(c.id?db.doc('customers/'+c.id).update(d):db.collection('customers').add(d));draftClear();m.remove()}catch(x){er(x.message)}

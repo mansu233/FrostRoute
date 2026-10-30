@@ -4,7 +4,9 @@ function tgDraw(){
  const e=$('#tg');if(!e)return;if(!ME||!ME.target){e.innerHTML='';return}
  const n=new Date(),m=n.getFullYear()*12+n.getMonth(),inM=t=>{const d=new Date(t);return d.getFullYear()*12+d.getMonth()==m};
  const v=sum(ORDS.filter(o=>o.uid==U.uid&&o.status!='cancelled'&&inM(o.at)),'total')-sum(RET.filter(r=>r.uid==U.uid&&r.status!='cancelled'&&inM(r.at)),'total'),p=Math.max(0,Math.min(100,Math.round(v/ME.target*100)));
- e.innerHTML=`<div class=card><div class=row><b style=flex:1>Monthly target</b><b>${p}%</b></div><div style="height:10px;background:var(--bd);border-radius:6px;margin:6px 0"><div style="height:10px;width:${p}%;background:var(--gr);border-radius:6px"></div></div><div class=mu>${money(v)} of ${money(ME.target)} (sales with VAT, minus returns)</div></div>`;
+ let ps=0,left=0;{const hol=CFG.holiday??5,td=n.getDate(),dim=new Date(n.getFullYear(),n.getMonth()+1,0).getDate();for(let i=1;i<=dim;i++){if(new Date(n.getFullYear(),n.getMonth(),i).getDay()==hol)continue;if(i<=td)ps++;if(i>=td)left++}}
+ const av=v/Math.max(1,ps),need=(ME.target-v)/Math.max(1,left);
+ e.innerHTML=`<div class=card><div class=row><b style=flex:1>Monthly target</b><b>${p}%</b></div><div style="height:10px;background:var(--bd);border-radius:6px;margin:6px 0"><div style="height:10px;width:${p}%;background:var(--gr);border-radius:6px"></div></div><div class=mu>${money(v)} of ${money(ME.target)} (sales with VAT, minus returns)</div><div class=row style="margin-top:8px"><span style=flex:1>Daily average</span><b>${money(av)}</b></div><div class=row><span style=flex:1>Needed per day (${left} working days left)</span><b style="color:${av>=need?'var(--gr)':'var(--rd)'}">${money(Math.max(0,need))}</b></div></div>`;
 }
 function dayLocked(){const l=CLS.find(x=>x.id==U.uid+'_'+todayD());if(l)alert('Today is already closed. Ask the admin to reopen the day to add more.');return !!l}
 async function reassign(c){

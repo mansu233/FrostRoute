@@ -1,5 +1,5 @@
 /* Phase 4: Shelf Check, order builder, scanning, cancel and undo, WhatsApp text, history */
-let ORDS=[],oUnsub=null,OD=null,SC=null,OV=null,UNDO=null;
+let OPEN=[],ORDS=[],oUnsub=null,OD=null,SC=null,OV=null,UNDO=null;
 const canRate=()=>ME.role=='admin'||(ME.perms&&ME.perms.editRate),dKey=()=>'draft_'+U.uid;
 const saveD=()=>{try{localStorage.setItem(dKey(),JSON.stringify({...OD,sel:[],hl:[]}))}catch(e){}};
 const pu=(p,u)=>u=='pcs'?1:(p.units&&p.units[u]&&p.units[u].qty)||1;
@@ -7,7 +7,7 @@ const avail=p=>['pcs',...Object.keys(p.units||{}).filter(k=>k!='pcs'&&p.units[k]
 const odraw=()=>{window.tgDraw&&tgDraw();window.cashRedraw&&$('#cw2')&&cashRedraw();typeof drawCust=='function'&&$('#cb')&&drawCust();return odrawX()};const odrawX=()=>OV?OV():(window.ordersRedraw&&$('#ow')&&ordersRedraw());
 function loadData(){
  if(!pUnsub)pUnsub=db.collection('products').onSnapshot(s=>{PRODS=s.docs.map(d=>({id:d.id,...d.data()}));drawProds();odraw()},()=>{pUnsub=null});
- if(!oUnsub){const c=db.collection('orders');oUnsub=(ME.role=='admin'?c:c.where('uid','==',U.uid)).onSnapshot(s=>{ORDS=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>b.at-a.at);odraw()},()=>{oUnsub=null})}
+ if(!oUnsub){const c=db.collection('orders');oUnsub=(ME.role=='admin'?c:c.where('uid','==',U.uid)).onSnapshot(s=>{const all=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>b.at-a.at);ORDS=all.filter(o=>o.status!='open');OPEN=all.filter(o=>o.status=='open');odraw()},()=>{oUnsub=null})}
 }
 function stats(cid){const fast={},cust={};ORDS.filter(o=>o.status!='cancelled').forEach(o=>(o.lines||[]).forEach(l=>{fast[l.pid]=(fast[l.pid]||0)+1;if(cid&&o.cid==cid){const x=cust[l.pid]||(cust[l.pid]={n:0,q:0,unit:'pcs'});x.n++;x.q+=l.qty;x.unit=l.unit}}));return{fast,cust}}
 function ov(){let m=$('#ov');if(!m){m=document.createElement('div');m.id='ov';m.style.cssText='position:fixed;inset:0;background:var(--bg);overflow:auto;z-index:20;padding:0 12px 90px;padding-top:calc(8px + env(safe-area-inset-top))';document.body.appendChild(m)}return m}
@@ -20,12 +20,15 @@ function ordersHome(el,member){
  const draft=localStorage.getItem(dKey()),dr=draft&&JSON.parse(draft);
  const draw=()=>{el.innerHTML=`${member?'<button class="b s ghost" onclick="sig=\'\';route()">Back</button>':''}
  <button class="b s" id=ow>New walk-in order</button>${dr&&dr.lines.length?'<button class="b s grn" id=or>Resume draft ('+dr.lines.length+' lines)</button>':''}
- <h2 style="margin-top:10px">Order history</h2>`+(ORDS.length?ORDS.slice(0,60).map(o=>`<div class=card><div class=row><b style=flex:1>#${esc(o.no)} ${esc(o.cname||'Walk-in')}</b><span class="tag ${o.status=='cancelled'?'rejected':'approved'}">${o.status}</span></div>
+ ${openHtml()}<h2 style="margin-top:10px">Bills and orders</h2>`+(ORDS.length?ORDS.slice(0,60).map(o=>`<div class=card><div class=row><b style=flex:1>#${esc(o.no)} ${esc(o.cname||'Walk-in')}</b><span class="tag ${o.status=='cancelled'?'rejected':'approved'}">${o.status}</span></div>
  <div class=mu>${new Date(o.at).toLocaleString()}, ${o.lines.length} lines, ${money(o.total)} with VAT, ${o.pay}${ME.role=='admin'?', '+esc(o.by):''}</div>${o.reason?`<div class=err>${esc(o.reason)}</div>`:''}
- <button class="b s ghost" data-a=share data-id=${o.id}>Share</button><button class="b s ghost" data-a=rep data-id=${o.id}>Repeat</button>
+ <button class="b s ghost" data-a=bill data-id=${o.id}>Bill</button><button class="b s ghost" data-a=share data-id=${o.id}>Share</button><button class="b s ghost" data-a=rep data-id=${o.id}>Repeat</button>
  ${o.status=='sent'&&(ME.role=='admin'||(ME.perms&&ME.perms.cancelSent))?`<button class="b s red" data-a=can data-id=${o.id}>Cancel order</button>`:''}</div>`).join(''):'<div class=card>No orders yet.</div>');
  if($('#ow'))$('#ow').onclick=()=>orderStart(null);if($('#or'))$('#or').onclick=()=>{OD=dr;orderView()};
- el.onclick=async e=>{const d=e.target.dataset,o=ORDS.find(x=>x.id==d.id);if(!d.a)return;
+ el.onclick=async e=>{const d=e.target.dataset,o=ORDS.find(x=>x.id==d.id)||OPEN.find(x=>x.id==d.id);if(!d.a)return;
+  if(d.a=='bill')return billView(o);
+  if(d.a=='open'){const cu=CUST.find(c=>c.id==o.cid);OD={cust:cu?{id:cu.id,nameEn:cu.nameEn,nameAr:cu.nameAr,phone:cu.phone}:null,walk:{name:o.cname,phone:o.phone||''},lines:o.lines.map(l=>({...l,st:''})),pay:o.pay,note:o.note||'',budget:0,sel:[],hl:[],openId:o.id,no:o.no,orderedAt:o.orderedAt||o.at};return orderView()}
+  if(d.a=='cano'){const r=prompt('Reason for cancelling open order #'+o.no);if(r)await db.doc('orders/'+o.id).update({status:'cancelled',reason:r,cancelledBy:ME.name,cancelledAt:Date.now()});return}
   if(d.a=='share')return open(waLink(o));
   if(d.a=='rep'){orderStart(CUST.find(c=>c.id==o.cid)||null,o.lines.map(l=>({...l,st:''})))}
   if(d.a=='can'){const r=prompt('Reason for cancelling order #'+o.no);if(r)await db.doc('orders/'+o.id).update({status:'cancelled',reason:r,cancelledBy:ME.name,cancelledAt:Date.now()}).then(()=>logAct('Order cancelled','#'+o.no+', '+o.cname+', '+r))}}};
@@ -81,7 +84,7 @@ function orderView(){
  <div class=card><div class=row><span style=flex:1>Subtotal</span><b>${money(sub)}</b></div><div class=row><span style=flex:1>VAT ${vp}%</span><b>${money(vat)}</b></div><div class=row><span style=flex:1><b>Total</b></span><b style="font-size:20px">${money(tot)}</b></div>
  <input id=obu type=number placeholder="Customer budget (optional)" value="${OD.budget||''}">${OD.budget&&tot>OD.budget?'<button class="b s" id=ofit>Auto-fit to budget</button>':''}${OD.budget?`<p class="${tot>OD.budget?'err':'mu'}">${tot>OD.budget?'Over budget by '+money(tot-OD.budget)+'. Reduce the lowest priority lines (bottom of the list).':'Within budget, '+money(OD.budget-tot)+' left.'}</p>`:''}
  <select id=opy><option value=cash ${OD.pay=='cash'?'selected':''}>Cash</option><option value=credit ${OD.pay=='credit'?'selected':''}>Credit</option></select><input id=ono placeholder="Order note" value="${esc(OD.note)}"></div>
- <button class=b id=osd>Send order to WhatsApp</button><button class="b ghost red" id=oca style="color:var(--rd)">Cancel entire order</button>
+ <button class=b id=osd>${OD.openId?'Convert to bill now':'Make bill now'}</button><button class="b ghost" id=oop>Save as open order (deliver later)</button><button class="b ghost red" id=oca style="color:var(--rd)">Cancel entire order</button>
  <div id=undo></div>`;
  if(UNDO)showUndo();
  const hl=()=>{if(OD.hl.length){const e=document.querySelector('[id^=l_]');setTimeout(()=>{OD.hl=[];},3000)}};hl();
@@ -110,7 +113,7 @@ function orderView(){
  $('#ores').onclick=e=>{const c=e.target.closest('[data-p]');if(c){addProd(PRODS.find(p=>p.id==c.dataset.p),'pcs')}};
  if($('#orm'))$('#orm').onclick=()=>{const c=Math.floor(100+Math.random()*900);if(prompt('Type '+c+' to remove '+OD.sel.length+' items')==c){OD.lines=OD.lines.filter((x,i)=>!OD.sel.includes(i));OD.sel=[];saveD();orderView()}else alert('Code did not match. Nothing removed.')};
  $('#oca').onclick=()=>{const c=Math.floor(100+Math.random()*900);if(prompt('Cancel the ENTIRE order ('+OD.lines.length+' lines, total '+money(tot)+')? Type '+c+' to confirm')==c){OD=null;localStorage.removeItem(dKey());closeOv()}else alert('Code did not match. Order kept.')};
- $('#osd').onclick=()=>sendOrder(sub,vat,tot,vp);
+ $('#osd').onclick=()=>sendOrder(sub,vat,tot,vp);$('#oop').onclick=()=>sendOrder(sub,vat,tot,vp,true);
 }
 function showUndo(){const u=$('#undo');if(u)u.innerHTML=`<div class=card style="position:fixed;left:12px;right:12px;bottom:12px;z-index:25;display:flex;align-items:center"><span style=flex:1>Item removed</span><button class="b s" id=uu>Undo</button></div>`;
  if($('#uu'))$('#uu').onclick=()=>{clearTimeout(UNDO.t);OD.lines.splice(UNDO.i,0,UNDO.l);UNDO=null;saveD();orderView()}}
@@ -119,15 +122,29 @@ function addProd(p,unit){if(!p)return;const ex=OD.lines.filter(l=>l.pid==p.id);
 function onScan(code){const f=byCode(bcn(code));if(!f)return alert('Product not found: '+code);
  const same=OD.lines.some(l=>l.pid==f.p.id);addProd(f.p,f.unit)}
 /* ---- send + WhatsApp text ---- */
-async function sendOrder(sub,vat,tot,vp){
- if(dayLocked())return;
+async function sendOrder(sub,vat,tot,vp,asOpen){
+ if(!asOpen&&dayLocked())return;
  if(!OD.lines.length)return alert('Add at least one product.');
  const n=(+localStorage.getItem('ordn_'+U.uid)||0)+1,no=ME.name.replace(/[^A-Za-z]/g,'').slice(0,2).toUpperCase()+n,c=OD.cust;
- const o={no,cid:c?c.id:'',cname:c?c.nameEn:(OD.walk.name||'Walk-in'),cnameAr:c?c.nameAr:'',phone:c?c.phone:OD.walk.phone,lines:OD.lines.map(l=>({...l,total:+(l.qty*l.rate).toFixed(2)})),sub,vatPct:vp,vat,total:tot,pay:OD.pay,note:OD.note,budget:OD.budget,uid:U.uid,by:ME.name,branch:ME.branch||'',at:Date.now(),status:'sent'};
- try{db.collection('orders').add(o);if(c)db.doc('customers/'+c.id).update({lead:false}).catch(()=>{});if(o.lines.some(l=>l.edited))logAct('Rate edited in order','#'+no+', '+o.cname);localStorage.setItem('ordn_'+U.uid,n)}catch(e){return alert(e.message)}
- OD=null;localStorage.removeItem(dKey());closeOv();window.open(waLink(o));if(window.ordersRedraw)ordersRedraw();
+ const o={no:(OD.openId&&OD.no)||no,cid:c?c.id:'',cname:c?c.nameEn:(OD.walk.name||'Walk-in'),cnameAr:c?c.nameAr:'',phone:c?c.phone:OD.walk.phone,lines:OD.lines.map(l=>({...l,total:+(l.qty*l.rate).toFixed(2)})),sub,vatPct:vp,vat,total:tot,pay:OD.pay,note:OD.note,budget:OD.budget,uid:U.uid,by:ME.name,branch:ME.branch||'',at:Date.now(),status:asOpen?'open':'sent',orderedAt:OD.orderedAt||Date.now()};
+ try{(OD.openId?db.doc('orders/'+OD.openId).update(o):db.collection('orders').add(o));if(c&&!asOpen)db.doc('customers/'+c.id).update({lead:false}).catch(()=>{});if(o.lines.some(l=>l.edited))logAct('Rate edited in order','#'+no+', '+o.cname);if(!(OD.openId&&OD.no))localStorage.setItem('ordn_'+U.uid,n)}catch(e){return alert(e.message)}
+ OD=null;localStorage.removeItem(dKey());closeOv();if(asOpen)alert('Saved as an open order. It is in Orders to deliver and does not count in sales until you make the bill.');else billView(o);if(window.ordersRedraw)ordersRedraw();
 }
 function waText(o){const d=new Date(o.at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}),L=ul=>({pcs:'Pcs',packet:'Pack',carton:'Cart'}[ul]||ul.charAt(0).toUpperCase()+ul.slice(1));
  return `*ORDER #${o.no}* – ${d}\nCustomer: ${o.cname}${o.cnameAr?' / '+o.cnameAr:''}\n`+o.lines.map((l,i)=>`${i+1}. ${l.name} – ${l.qty} ${L(l.unit)} × ${money(l.rate)} = ${money(l.total)}`).join('\n')
  +`\nSubtotal: ${money(o.sub)}\nVAT ${o.vatPct}%: ${money(o.vat)}\n*TOTAL: ${money(o.total)}*\n${o.pay=='credit'?'Credit':'Cash'}${o.note?'\nNote: '+o.note:''}\nBy: ${o.by}`}
 function waLink(o){let p=ph(o.phone||'');return 'https://wa.me/'+(p?'966'+p.slice(1):'')+'?text='+encodeURIComponent(waText(o))}
+
+/* open orders (deliver later) and the printable bill */
+const openHtml=()=>{const L=OPEN.filter(o=>ME.role=='admin'||o.uid==U.uid);if(!L.length)return '';const lim=(CFG.openDays||3)*864e5;
+ return `<h2 style="margin-top:10px">Orders to deliver (${L.length})</h2>`+L.map(o=>{const ms=Date.now()-(o.orderedAt||o.at),age=Math.floor(ms/864e5);
+  return `<div class=card style="border-color:${ms>lim?'var(--rd)':'var(--or)'}"><div class=row><b style=flex:1>#${esc(o.no)} ${esc(o.cname||'Walk-in')}</b><span class="tag pending">open</span></div><div class=mu>${o.lines.length} lines, about ${money(o.total)} with VAT, ${age} day${age==1?'':'s'} old${ms>lim?', overdue':''}${ME.role=='admin'?', '+esc(o.by):''}</div><button class="b s grn" data-a=open data-id=${o.id}>Deliver and bill</button><button class="b s red" data-a=cano data-id=${o.id}>Cancel</button></div>`}).join('')};
+function billView(o){
+ OV=null;const m=ov(),rw=(a,b,x)=>`<div style="display:flex;justify-content:space-between;${x||''}"><span>${a}</span><span>${b}</span></div>`;
+ m.innerHTML=`<div class=wrap><div class=noprint><button class="b s ghost" id=bx>Close</button></div><div class=card style="background:#fff;color:#000;border-color:#ccc"><h2 style="text-align:center">SALES BILL</h2><div style="text-align:center;font-size:12px">Not a tax invoice</div><hr>
+ ${rw('Bill #'+esc(o.no),new Date(o.at).toLocaleString())}<div>Customer: ${esc(o.cname)} ${esc(o.cnameAr||'')}</div><hr>
+ ${o.lines.map((l,i)=>rw(`${i+1}. ${esc(l.name)}<br><small>${l.qty} ${esc(l.unit)} x ${money(l.rate)}</small>`,`<b>${money(l.total||l.qty*l.rate)}</b>`,'margin:4px 0')).join('')}<hr>
+ ${rw('Subtotal',money(o.sub))}${rw('VAT '+o.vatPct+'%',money(o.vat))}${rw('<b>TOTAL</b>','<b>'+money(o.total)+'</b>')}<div>${o.pay=='credit'?'Credit':'Cash'}</div>${o.note?`<div>Note: ${esc(o.note)}</div>`:''}<div style="font-size:12px;margin-top:6px">By ${esc(o.by)}</div><div style="font-size:11px;text-align:center;margin-top:8px;border-top:1px dashed #999;padding-top:6px">Sales bill - not a tax invoice</div></div>
+ <div class=noprint><button class=b id=bp>Print</button><button class="b ghost" id=bw>Share on WhatsApp</button></div></div>`;
+ $('#bx').onclick=closeOv;$('#bp').onclick=()=>window.print();$('#bw').onclick=()=>open(waLink(o));
+}
