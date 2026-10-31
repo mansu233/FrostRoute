@@ -1,6 +1,6 @@
 // ONE place to rename the app or change the version.
 // Every update: raise APP.version (the service worker reads this file, so phones refresh automatically).
-const APP = { name: "FrostRoute", version: "0.11.2", date: "2026-10-24" };
+const APP = { name: "FrostRoute", version: "0.12.0", date: "2026-10-24" };
 
 // Paste your Firebase web app config (Firebase console > Project settings > Your apps)
 const firebaseConfig = {
@@ -16,11 +16,11 @@ const firebaseConfig = {
 const DEFAULTS = {
   vatPercent: 15, pinLockSeconds: 90, passwordDays: 30,
   gpsRadius: 150, checkinMode: "warn", loadBuffer: 10,
-  dailyVisitLimit: 20, manualTotal: 0, openDays: 3, holiday: 5, font: +(localStorage.getItem("font")||1), navAdmin: ["home","users","prod","cust","ord","cash"], navMember: ["home","cust","ord","cash","prod"], returnLimit: 0, dormantDays: 45, scanDuplicate: "highlight"
+  dailyVisitLimit: 20, manualTotal: 0, qPerVisit: 3, openDays: 3, holiday: 5, font: +(localStorage.getItem("font")||1), navAdmin: ["home","users","prod","cust","ord","cash"], navMember: ["home","cust","ord","cash","prod"], returnLimit: 0, dormantDays: 45, scanDuplicate: "highlight"
 };
 const SETTING_LABELS = {
   vatPercent: "VAT %", pinLockSeconds: "Ask PIN after background (seconds)", passwordDays: "Ask email password again after (days)",
-  gpsRadius: "GPS check-in distance (m)", loadBuffer: "Load list buffer %", dailyVisitLimit: "Daily visit limit", dormantDays: "Dormant customer after (days without order)", returnLimit: "Returns above this amount need admin approval (0 = off)", openDays: "Open order reminder after (days)", holiday: "Holiday weekday (0 = Sunday, 5 = Friday)", manualTotal: "Allow typed cash total without counter (1 = yes)"
+  gpsRadius: "GPS check-in distance (m)", loadBuffer: "Load list buffer %", dailyVisitLimit: "Daily visit limit", dormantDays: "Dormant customer after (days without order)", returnLimit: "Returns above this amount need admin approval (0 = off)", openDays: "Open order reminder after (days)", holiday: "Holiday weekday (0 = Sunday, 5 = Friday)", qPerVisit: "Customer questions per visit (1 to 3)", manualTotal: "Allow typed cash total without counter (1 = yes)"
 };
 
 // Every permission is OFF for members until the admin switches it on.
@@ -29,7 +29,7 @@ const PERMS = {
   viewProducts: "View products", createOrders: "Create orders", editRate: "Edit rate in order",
   addProducts: "Add / edit products", cancelSent: "Cancel sent orders", makeReturns: "Sales returns",
   collectPayments: "Collect payments", dayClosing: "Day closing", moneyCounter: "Money counter + WhatsApp share",
-  loadList: "Night load list", skillPlan: "30-day skill plan (private)", viewRanking: "Customer ranking", viewReports: "Reports"
+  loadList: "Night load list", skillPlan: "30-day skill plan (private)", custQ: "Customer questions (private answers)", viewRanking: "Customer ranking", viewReports: "Reports"
 };
 
 // Fonts the admin can choose in Settings (English and Arabic).

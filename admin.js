@@ -87,3 +87,8 @@ function bulkPhotos(){
   await b.commit();alert(ok+' photos attached.'+(miss.length?'\n\nNo matching product for:\n'+miss.slice(0,15).join('\n'):''))};
  NOLOCK=Date.now()+18e4;i.click();
 }
+
+/* numbered permission list, from least powerful to most powerful */
+const PERM_GROUPS=[['View only',['viewProducts','viewRanking','loadList','viewReports']],['Personal tools',['visitPlan','skillPlan','custQ','moneyCounter']],['Selling',['manageCustomers','createOrders','collectPayments']],['Money and closing',['dayClosing','makeReturns']],['Control (most powerful)',['editRate','addProducts','cancelSent']]];
+function permHtml(u){let n=0;const rest=Object.keys(PERMS).filter(k=>!PERM_GROUPS.some(g=>g[1].includes(k))),G=rest.length?[...PERM_GROUPS,['Other',rest]]:PERM_GROUPS;
+ return G.map(([g,ks])=>`<div class=mu style="margin:10px 0 2px;font-weight:700">${g}</div>`+ks.filter(k=>PERMS[k]).map(k=>`<label class=perm><input type=checkbox data-id=${u.id} data-act=perm data-k=${k} ${u.perms&&u.perms[k]?'checked':''}><span><b>${++n}.</b> ${PERMS[k]}</span></label>`).join('')).join('')}

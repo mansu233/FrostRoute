@@ -21,7 +21,7 @@ const PLAN0=[
 "Visit a Lead and ask for the first order|Follow up one reminder",
 "End every visit by confirming the next visit day|Read the order total back to the customer",
 "Check your orders per visit|Find your best visit this week and why",
-"Compare your sales with your monthly target|Check the target bar on your home screen",
+"Compare your sales with your monthly target|Check the target bar on your home screen|Read your customer question insights",
 "List customers visited with no order this month|Plan a different approach for each",
 "Visit or call one dormant shop|Ask why they stopped ordering",
 "Check your returns: which product and why|Plan how to avoid it",

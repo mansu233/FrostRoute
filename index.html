@@ -45,6 +45,7 @@ button,input,select,label,.card{touch-action:manipulation}
 <script src="extras.js"></script>
 <script src="admin.js"></script>
 <script src="plan.js"></script>
+<script src="questions.js"></script>
 <script>
 document.title=APP.name;
 function memberOrders(){NAVK='ord';R(header()+'<div class=wrap id=ww></div>');syncDot();ordersHome($('#ww'),true)}
@@ -52,6 +53,7 @@ function memberClose(){NAVK='cash';R(header()+'<div class=wrap id=xw></div>');sy
 function memberLoad(){NAVK='load';R(header()+'<div class=wrap id=xw></div>');syncDot();loadListView($('#xw'),true)}
 function memberRank(){CV.tab='rank';memberCust();NAVK='rank';$('#nav')&&$('#nav').querySelectorAll('button').forEach(b=>b.className=b.dataset.nav=='rank'?'on':'')}
 function memberReports(){NAVK='rep';R(header()+'<div class=wrap id=xw></div>');syncDot();myReport($('#xw'),true)}
+function memberInsights(){NAVK='home';R(header()+'<div class=wrap id=iw></div>');syncDot();insightsView($('#iw'))}
 function memberPlan(){NAVK='plan';R(header()+'<div class=wrap id=pln></div>');syncDot();planView($('#pln'))}
 function memberCust(){NAVK='cust';R(header()+'<div class=wrap id=cw></div>');syncDot();customersView($('#cw'),true)}
 function memberProducts(){NAVK='prod';R(header()+'<div class=wrap id=pw></div>');syncDot();productsView($('#pw'),true)}
@@ -166,7 +168,7 @@ addEventListener('online',syncDot);addEventListener('offline',syncDot);
 function memberView(){NAVK='home';
  const on=Object.keys(PERMS).filter(k=>ME.perms&&ME.perms[k]);
  R(header()+`<div class=wrap><h2>Hello ${esc(ME.name)}</h2><p class=mu>Branch: ${esc(ME.branch||'not set')}</p><div id=ann></div><div id=tg></div>
- ${on.length?`<div class=grid>${on.map(k=>k=='viewProducts'?`<div class=tile onclick="memberProducts()" style="cursor:pointer;border-color:var(--pr)"><b>Products</b><div class=mu>Search, scan, prices</div></div>`:k=='manageCustomers'?`<div class=tile onclick="memberCust()" style="cursor:pointer;border-color:var(--pr)"><b>Customers</b><div class=mu>Today's visits, search, reminders</div></div>`:k=='createOrders'?`<div class=tile onclick="memberOrders()" style="cursor:pointer;border-color:var(--pr)"><b>Orders</b><div class=mu>New order, history</div></div>`:k=='dayClosing'?`<div class=tile onclick="memberClose()" style="cursor:pointer;border-color:var(--pr)"><b>Day closing</b><div class=mu>Cash, expenses, money counter</div></div>`:k=='loadList'?`<div class=tile onclick="memberLoad()" style="cursor:pointer;border-color:var(--pr)"><b>Load list</b><div class=mu>Tomorrow's vehicle load</div></div>`:k=='skillPlan'?`<div class=tile onclick="memberPlan()" style="cursor:pointer;border-color:var(--pr)"><b>30-day plan</b><div class=mu>Daily tasks, quiz, your numbers</div></div>`:k=='viewRanking'?`<div class=tile onclick="memberRank()" style="cursor:pointer;border-color:var(--pr)"><b>Customer ranking</b><div class=mu>Best to worst, with history</div></div>`:k=='viewReports'?`<div class=tile onclick="memberReports()" style="cursor:pointer;border-color:var(--pr)"><b>My reports</b><div class=mu>Sales, returns, top customers</div></div>`:['visitPlan','collectPayments','makeReturns','moneyCounter','editRate','addProducts','cancelSent'].includes(k)?'':`<div class=tile>${PERMS[k]}<div class=mu>Coming in a later phase</div></div>`).join('')}</div>`
+ ${on.length?`<div class=grid>${on.map(k=>k=='viewProducts'?`<div class=tile onclick="memberProducts()" style="cursor:pointer;border-color:var(--pr)"><b>Products</b><div class=mu>Search, scan, prices</div></div>`:k=='manageCustomers'?`<div class=tile onclick="memberCust()" style="cursor:pointer;border-color:var(--pr)"><b>Customers</b><div class=mu>Today's visits, search, reminders</div></div>`:k=='createOrders'?`<div class=tile onclick="memberOrders()" style="cursor:pointer;border-color:var(--pr)"><b>Orders</b><div class=mu>New order, history</div></div>`:k=='dayClosing'?`<div class=tile onclick="memberClose()" style="cursor:pointer;border-color:var(--pr)"><b>Day closing</b><div class=mu>Cash, expenses, money counter</div></div>`:k=='loadList'?`<div class=tile onclick="memberLoad()" style="cursor:pointer;border-color:var(--pr)"><b>Load list</b><div class=mu>Tomorrow's vehicle load</div></div>`:k=='custQ'?`<div class=tile onclick="memberInsights()" style="cursor:pointer;border-color:var(--pr)"><b>Customer questions</b><div class=mu>Your insights, private</div></div>`:k=='skillPlan'?`<div class=tile onclick="memberPlan()" style="cursor:pointer;border-color:var(--pr)"><b>30-day plan</b><div class=mu>Daily tasks, quiz, your numbers</div></div>`:k=='viewRanking'?`<div class=tile onclick="memberRank()" style="cursor:pointer;border-color:var(--pr)"><b>Customer ranking</b><div class=mu>Best to worst, with history</div></div>`:k=='viewReports'?`<div class=tile onclick="memberReports()" style="cursor:pointer;border-color:var(--pr)"><b>My reports</b><div class=mu>Sales, returns, top customers</div></div>`:['visitPlan','collectPayments','makeReturns','moneyCounter','editRate','addProducts','cancelSent'].includes(k)?'':`<div class=tile>${PERMS[k]}<div class=mu>Coming in a later phase</div></div>`).join('')}</div>`
  :'<div class=card>No features are switched on for you yet. Ask the admin to give access.</div>'}<label class=perm style="margin-top:14px"><input type=checkbox id=sysf ${localStorage.getItem('sysfont')=='1'?'checked':''}>Use my phone's default font</label></div>`);
  syncDot();loadCash();tgDraw();annDraw();$('#sysf').onchange=e=>{localStorage.setItem('sysfont',e.target.checked?'1':'0');applyFont()};
 }
@@ -194,7 +196,7 @@ function drawUsers(){
   ${u.status=='approved'?`<button class="b s red" data-id=${u.id} data-act=disabled>Disable</button>`:''}
   <button class="b s ghost" data-id=${u.id} data-act=pin>Reset PIN</button><button class="b s ghost" data-id=${u.id} data-act=logout>Force logout</button>
   <button class="b s ghost" data-id=${u.id} data-act=role>${u.role=='admin'?'Make member':'Make admin'}</button></div>
-  <details><summary>Permissions (all off by default)</summary>${Object.entries(PERMS).map(([k,l])=>`<label class=perm><input type=checkbox data-id=${u.id} data-act=perm data-k=${k} ${u.perms&&u.perms[k]?'checked':''}>${l}</label>`).join('')}</details>`}</div>`}).join('')
+  <details><summary>Permissions (all off by default)</summary>${permHtml(u)}</details>`}</div>`}).join('')
   :'<div class=card>No users here.</div>';
 }
 document.addEventListener('click',async e=>{
@@ -216,10 +218,11 @@ function settingsView(){
  <label class=mu>Font (for everyone)</label><select id=s_font onchange="CFG.font=+this.value;applyFont()">${FONTS.map(f=>`<option value=${f.id} ${f.id==(CFG.font||1)?'selected':''}>${f.id}. ${f.name}</option>`).join('')}</select>
  <label class=mu>Admin bottom bar (6 buttons, in order)</label>${[0,1,2,3,4,5].map(i=>navSel('na'+i,(CFG.navAdmin||[])[i])).join('')}
  <label class=mu>Member bottom bar (members only see what their permissions allow)</label>${[0,1,2,3,4,5].map(i=>navSel('nm'+i,(CFG.navMember||[])[i])).join('')}
+ <label class=mu>Customer questions (one per line: type|English|Arabic). Types: yn, score, prod, note, ch:Option1,Option2. Answers stay private to each salesman.</label><textarea id=s_q rows=8 style="width:100%;padding:10px;border:1.5px solid var(--bd);border-radius:12px;background:var(--card);color:var(--tx);font:inherit">${esc((CFG.questions&&CFG.questions.length?CFG.questions:QS0).join('\n'))}</textarea>
  <label class=mu>30-day plan tasks (one line per day, tasks separated by |). Members' progress stays private.</label><textarea id=s_plan rows=10 style="width:100%;padding:10px;border:1.5px solid var(--bd);border-radius:12px;background:var(--card);color:var(--tx);font:inherit">${esc(planLines().join('\n'))}</textarea>
  <label class=mu>Announcement (shown on every member's home screen, leave empty to hide)</label><textarea id=s_ann rows=3 style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);font:inherit">${esc(CFG.announcement||'')}</textarea><button class=b id=sv>Save settings</button><p class=mu id=sm></p></div>
  <div class=card><h2>About</h2><p class=mu>${esc(APP.name)} · version ${APP.version} · ${APP.date}</p></div>`;
- $('#sv').onclick=async()=>{const o={};for(const k in SETTING_LABELS)o[k]=+$('#s_'+k).value;o.announcement=$('#s_ann').value.trim();o.plan=$('#s_plan').value.split('\n').map(x=>x.trim()).filter(Boolean);o.font=+$('#s_font').value;const nv=p=>[...new Set([0,1,2,3,4,5].map(i=>$('#'+p+i).value).filter(Boolean))];o.navAdmin=nv('na');o.navMember=nv('nm');await db.doc('settings/app').set(o,{merge:true});Object.assign(CFG,o);applyFont();alert('Saved.');adminView()};
+ $('#sv').onclick=async()=>{const o={};for(const k in SETTING_LABELS)o[k]=+$('#s_'+k).value;o.announcement=$('#s_ann').value.trim();o.questions=$('#s_q').value.split('\n').map(x=>x.trim()).filter(Boolean);o.plan=$('#s_plan').value.split('\n').map(x=>x.trim()).filter(Boolean);o.font=+$('#s_font').value;const nv=p=>[...new Set([0,1,2,3,4,5].map(i=>$('#'+p+i).value).filter(Boolean))];o.navAdmin=nv('na');o.navMember=nv('nm');await db.doc('settings/app').set(o,{merge:true});Object.assign(CFG,o);applyFont();alert('Saved.');adminView()};
 }
 
 applyFont();

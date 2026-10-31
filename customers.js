@@ -82,7 +82,7 @@ function drawCust(){
   if(d.a=='today')return db.doc('customers/'+c.id).update({extraDate:todayD()});
   if(d.a=='skip'){const n=new Date();n.setDate(n.getDate()+((c.day-n.getDay()+7)%7||7));await db.doc('customers/'+c.id).update({skipDate:isoD(+n)});return alert('Skipped on '+isoD(+n)+'. The weekly plan returns after that.')}
   if(d.a=='rem')return remView(c);if(d.a=='remv')return remView(c);
-  if(d.a=='in')return checkIn(c);
+  if(d.a=='in')return checkIn(c).then(()=>{if(hasQ())askQs(c)});
  };
 }
 /* ---- add / edit form ---- */

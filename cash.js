@@ -9,17 +9,24 @@ function loadCash(){
 }
 function calc(uid,day){
  const o=ORDS.filter(x=>x.uid==uid&&x.status!='cancelled'&&isoD(x.at)==day),cash=sum(o.filter(x=>x.pay=='cash'),'total'),credit=sum(o.filter(x=>x.pay=='credit'),'total'),
-  p=PAY.filter(x=>x.uid==uid&&x.day==day),old=sum(p.filter(x=>x.method=='cash'),'amount'),bank=sum(p.filter(x=>x.method=='bank'),'amount'),
+  p=PAY.filter(x=>x.uid==uid&&x.day==day),old=sum(p.filter(x=>x.method=='cash'),'amount'),bank=sum(p.filter(x=>x.method!='cash'),'amount'),
   r=RET.filter(x=>x.uid==uid&&x.day==day&&x.status!='cancelled'),ret=sum(r,'total'),cr=sum(r.filter(x=>x.refund=='cash'),'total'),e=sum(EXP.filter(x=>x.uid==uid&&x.day==day),'amount'),
   sale=cash+credit,net=sale-ret,recv=cash+old+bank;
  return {n:o.length,sale,ret,net,cash,credit,old,bank,recv,cr,e,hand:recv-bank-cr-e,bal:net-recv};
 }
 /* ---- collect payment (from customer card) ---- */
-async function collectPay(c){
- if(dayLocked())return;
- const a=+dg(prompt('Amount received from '+c.nameEn)||'').replace(/[^\d.]/g,'');if(!a)return;
- const m=confirm('OK = Cash\nCancel = Bank / card / transfer')?'cash':'bank';
- await db.collection('payments').add({cid:c.id,cname:c.nameEn,uid:U.uid,by:ME.name,amount:a,method:m,at:Date.now(),day:todayD()});alert('Payment saved: '+money(a)+' ('+m+')');
+function collectPay(c){
+ if(dayLocked())return;let m='';const due=typeof custBal=='function'?custBal(c.id):0,w=ov(),num=()=>+dg($('#pam').value).replace(/[^\d.]/g,'')||0;OV=null;
+ w.innerHTML=`<div class=wrap style="padding-top:16px"><h2>Collect payment</h2><div class=mu>${esc(c.nameEn)}</div>${due>0?`<div class=card><div class=mu>Balance due</div><b style="font-size:22px">${money(due)}</b> <button class="b s ghost" id=pfu type=button>Use full balance</button></div>`:''}
+ <label class=mu>Amount received</label><input id=pam type=number inputmode=decimal placeholder="0.00" style="font-size:22px;min-height:56px">
+ <label class=mu>How was it paid? Choose one</label><div class=row id=pmt style="gap:8px">${[['cash','Cash'],['bank','Bank transfer'],['card','Card']].map(([k,l])=>`<button class="b ghost" type=button data-m=${k} style="flex:1;min-height:64px;margin:4px 0">${l}</button>`).join('')}</div>
+ <button class=b id=psv disabled>Enter the amount and choose how it was paid</button><button class="b ghost" id=pcx>Cancel</button></div>`;
+ const upd=()=>{const a=num(),b=$('#psv'),L={cash:'cash',bank:'bank transfer',card:'card'};b.disabled=!(a>0&&m);b.textContent=a>0&&m?'Save '+money(a)+' received by '+L[m]:'Enter the amount and choose how it was paid';
+  w.querySelectorAll('[data-m]').forEach(x=>{const on=x.dataset.m==m;x.style.background=on?'var(--pr)':'transparent';x.style.color=on?'#fff':'var(--pr)'})};
+ $('#pam').oninput=upd;if($('#pfu'))$('#pfu').onclick=()=>{$('#pam').value=due;upd()};
+ $('#pmt').onclick=e=>{const k=e.target.dataset.m;if(k){m=k;upd()}};$('#pcx').onclick=closeOv;
+ $('#psv').onclick=()=>{const a=num();if(!(a>0&&m))return;$('#psv').disabled=true;db.collection('payments').add({cid:c.id,cname:c.nameEn,uid:U.uid,by:ME.name,amount:a,method:m,at:Date.now(),day:todayD()});closeOv();alert('Payment saved: '+money(a)+' ('+m+')')};
+ upd();
 }
 /* ---- sales return ---- */
 function returnStart(c){loadCash();RT={c,lines:[],reason:'Damaged',refund:'cash'};retView()}
