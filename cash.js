@@ -108,5 +108,5 @@ async function reportsView(el){
  el.onclick=async e=>{const d=e.target.dataset;if(d.a=='rapp'||d.a=='rrej'){await db.doc('returns/'+d.id).update({status:d.a=='rapp'?'saved':'rejected',approvedBy:ME.name});logAct('Return '+(d.a=='rapp'?'approved':'rejected'),d.id)}if(d.a=='rcv')await db.doc('closings/'+d.id).update({status:'received',receivedAt:Date.now()});if(d.a=='reopen'&&confirm('Reopen this closing? The salesman can submit again.'))await db.doc('closings/'+d.id).delete();logAct('Day reopened',d.id)}};
  window.cashRedraw=draw;draw();
 }
-function cashAdmin(el){el.innerHTML=`<div class=tabs><button data-k=c>My closing</button><button data-k=r>Reports</button><button data-k=l>Load list</button><button data-k=e>Export</button><button data-k=a>Activity</button></div><div id=cs></div>`;
- const go=k=>{const b=$('#cs');k=='c'?closingView(b):k=='r'?reportsView(b):k=='e'?exportView(b):k=='a'?activityView(b):loadListView(b)};el.querySelector('.tabs').onclick=e=>e.target.dataset.k&&go(e.target.dataset.k);go('r')}
+function cashAdmin(el){el.innerHTML=`<div class=tabs><button data-k=c>My closing</button><button data-k=r>Reports</button><button data-k=l>Load list</button><button data-k=e>Export</button><button data-k=a>Activity</button><button data-k=s>Lost sales</button></div><div id=cs></div>`;
+ const go=k=>{const b=$('#cs');k=='c'?closingView(b):k=='r'?reportsView(b):k=='e'?exportView(b):k=='a'?activityView(b):k=='s'?lostView(b):loadListView(b)};el.querySelector('.tabs').onclick=e=>e.target.dataset.k&&go(e.target.dataset.k);go('r')}

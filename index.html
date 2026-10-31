@@ -46,6 +46,7 @@ button,input,select,label,.card{touch-action:manipulation}
 <script src="admin.js"></script>
 <script src="plan.js"></script>
 <script src="questions.js"></script>
+<script src="boost.js"></script>
 <script>
 document.title=APP.name;
 function memberOrders(){NAVK='ord';R(header()+'<div class=wrap id=ww></div>');syncDot();ordersHome($('#ww'),true)}
@@ -218,11 +219,12 @@ function settingsView(){
  <label class=mu>Font (for everyone)</label><select id=s_font onchange="CFG.font=+this.value;applyFont()">${FONTS.map(f=>`<option value=${f.id} ${f.id==(CFG.font||1)?'selected':''}>${f.id}. ${f.name}</option>`).join('')}</select>
  <label class=mu>Admin bottom bar (6 buttons, in order)</label>${[0,1,2,3,4,5].map(i=>navSel('na'+i,(CFG.navAdmin||[])[i])).join('')}
  <label class=mu>Member bottom bar (members only see what their permissions allow)</label>${[0,1,2,3,4,5].map(i=>navSel('nm'+i,(CFG.navMember||[])[i])).join('')}
+ <label class=mu>This week's focus products and offers (one per line: product name or barcode | short note, for example Rana Hot Sauce | buy 2 cartons, get 1 free)</label><textarea id=s_f rows=4 style="width:100%;padding:10px;border:1.5px solid var(--bd);border-radius:12px;background:var(--card);color:var(--tx);font:inherit">${esc((CFG.focus||[]).join('\n'))}</textarea>
  <label class=mu>Customer questions (one per line: type|English|Arabic). Types: yn, score, prod, note, ch:Option1,Option2. Answers stay private to each salesman.</label><textarea id=s_q rows=8 style="width:100%;padding:10px;border:1.5px solid var(--bd);border-radius:12px;background:var(--card);color:var(--tx);font:inherit">${esc((CFG.questions&&CFG.questions.length?CFG.questions:QS0).join('\n'))}</textarea>
  <label class=mu>30-day plan tasks (one line per day, tasks separated by |). Members' progress stays private.</label><textarea id=s_plan rows=10 style="width:100%;padding:10px;border:1.5px solid var(--bd);border-radius:12px;background:var(--card);color:var(--tx);font:inherit">${esc(planLines().join('\n'))}</textarea>
  <label class=mu>Announcement (shown on every member's home screen, leave empty to hide)</label><textarea id=s_ann rows=3 style="width:100%;padding:10px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);font:inherit">${esc(CFG.announcement||'')}</textarea><button class=b id=sv>Save settings</button><p class=mu id=sm></p></div>
  <div class=card><h2>About</h2><p class=mu>${esc(APP.name)} · version ${APP.version} · ${APP.date}</p></div>`;
- $('#sv').onclick=async()=>{const o={};for(const k in SETTING_LABELS)o[k]=+$('#s_'+k).value;o.announcement=$('#s_ann').value.trim();o.questions=$('#s_q').value.split('\n').map(x=>x.trim()).filter(Boolean);o.plan=$('#s_plan').value.split('\n').map(x=>x.trim()).filter(Boolean);o.font=+$('#s_font').value;const nv=p=>[...new Set([0,1,2,3,4,5].map(i=>$('#'+p+i).value).filter(Boolean))];o.navAdmin=nv('na');o.navMember=nv('nm');await db.doc('settings/app').set(o,{merge:true});Object.assign(CFG,o);applyFont();alert('Saved.');adminView()};
+ $('#sv').onclick=async()=>{const o={};for(const k in SETTING_LABELS)o[k]=+$('#s_'+k).value;o.announcement=$('#s_ann').value.trim();o.focus=$('#s_f').value.split('\n').map(x=>x.trim()).filter(Boolean);o.questions=$('#s_q').value.split('\n').map(x=>x.trim()).filter(Boolean);o.plan=$('#s_plan').value.split('\n').map(x=>x.trim()).filter(Boolean);o.font=+$('#s_font').value;const nv=p=>[...new Set([0,1,2,3,4,5].map(i=>$('#'+p+i).value).filter(Boolean))];o.navAdmin=nv('na');o.navMember=nv('nm');await db.doc('settings/app').set(o,{merge:true});Object.assign(CFG,o);applyFont();alert('Saved.');adminView()};
 }
 
 applyFont();

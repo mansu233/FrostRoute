@@ -44,7 +44,7 @@ function dueToday(c){
 /* ---- main view ---- */
 function customersView(el,member){
  el.innerHTML=`${member?'<button class="b s ghost" onclick="sig=\'\';route()">Back</button>':''}
- <div class=tabs>${['today','all','week','rem',...(member&&!(ME.perms&&ME.perms.viewRanking)?[]:['rank'])].map(k=>`<button data-t=${k} class="${CV.tab==k?'on':''}">${{today:'Today',all:'All customers',rem:'Reminders',rank:'Ranking',week:'Weekly'}[k]}</button>`).join('')}</div>
+ <div class=tabs>${['today','due','all','bal','week','rem',...(member&&!(ME.perms&&ME.perms.viewRanking)?[]:['rank'])].map(k=>`<button data-t=${k} class="${CV.tab==k?'on':''}">${{today:'Today',all:'All customers',rem:'Reminders',rank:'Ranking',week:'Weekly',due:'Reorder due',bal:'Balances'}[k]}</button>`).join('')}</div>
  <div id=cb></div>`;
  el.querySelector('.tabs').onclick=e=>{if(e.target.dataset.t){CV.tab=e.target.dataset.t;customersView(el,member)}};
  loadCash();
@@ -52,7 +52,7 @@ function customersView(el,member){
  drawCust();
 }
 function drawCust(){
- const b=$('#cb');if(!b)return;const admin=ME.role=='admin';if(CV.tab=='rank')return rankView(b);if(CV.tab=='week')return weekView(b);
+ const b=$('#cb');if(!b)return;const admin=ME.role=='admin';if(CV.tab=='rank')return rankView(b);if(CV.tab=='week')return weekView(b);if(CV.tab=='due')return dueView(b);if(CV.tab=='bal')return balView(b);
  if(CV.tab=='rem')return remTab(b);
  let a=CUST.slice();const q=CV.q.toLowerCase(),qd=ph(CV.q);
  if(CV.tab=='today'){a=a.filter(dueToday)}
