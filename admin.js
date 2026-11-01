@@ -1,12 +1,25 @@
 /* Phase 7: announcements, monthly target, CSV export, reassign customer, closed-day lock */
 function annDraw(){const a=$('#ann');if(a)a.innerHTML=CFG.announcement?`<div class=card style="border-color:var(--pr)"><b>Announcement</b><div>${esc(CFG.announcement)}</div></div>`:''}
 function tgDraw(){
- const e=$('#tg');if(!e)return;if(!ME||!ME.target){e.innerHTML='';return}
- const n=new Date(),m=n.getFullYear()*12+n.getMonth(),inM=t=>{const d=new Date(t);return d.getFullYear()*12+d.getMonth()==m};
- const v=sum(ORDS.filter(o=>o.uid==U.uid&&o.status!='cancelled'&&inM(o.at)),'total')-sum(RET.filter(r=>r.uid==U.uid&&r.status!='cancelled'&&inM(r.at)),'total'),p=Math.max(0,Math.min(100,Math.round(v/ME.target*100)));
- let ps=0,left=0;{const hol=CFG.holiday??5,td=n.getDate(),dim=new Date(n.getFullYear(),n.getMonth()+1,0).getDate();for(let i=1;i<=dim;i++){if(new Date(n.getFullYear(),n.getMonth(),i).getDay()==hol)continue;if(i<=td)ps++;if(i>=td)left++}}
- const av=v/Math.max(1,ps),need=(ME.target-v)/Math.max(1,left);
- e.innerHTML=`<div class=card><div class=row><b style=flex:1>Monthly target</b><b>${p}%</b></div><div style="height:10px;background:var(--bd);border-radius:6px;margin:6px 0"><div style="height:10px;width:${p}%;background:var(--gr);border-radius:6px"></div></div><div class=mu>${money(v)} of ${money(ME.target)} (sales with VAT, minus returns)</div><div class=row style="margin-top:8px"><span style=flex:1>Daily average</span><b>${money(av)}</b></div><div class=row><span style=flex:1>Needed per day (${left} working days left)</span><b style="color:${av>=need?'var(--gr)':'var(--rd)'}">${money(Math.max(0,need))}</b></div></div>`;
+ const e=$('#tg');if(!e)return;if(!ME){e.innerHTML='';return}
+ if(typeof startRem=='function')startRem();
+ const n=new Date(),mo=n.getFullYear()*12+n.getMonth(),inM=t=>{const d=new Date(t);return d.getFullYear()*12+d.getMonth()==mo},td=todayD(),mine=ORDS.filter(o=>o.uid==U.uid&&o.status!='cancelled'),T=ME.target||0;
+ const v=sum(mine.filter(o=>inM(o.at)),'total')-sum(RET.filter(r=>r.uid==U.uid&&r.status!='cancelled'&&inM(r.at)),'total'),p=T?Math.max(0,Math.min(100,Math.round(v/T*100))):0;
+ let ps=0,left=0,wd=0;{const hol=CFG.holiday??5,t=n.getDate(),dim=new Date(n.getFullYear(),n.getMonth()+1,0).getDate();for(let i=1;i<=dim;i++){if(new Date(n.getFullYear(),n.getMonth(),i).getDay()==hol)continue;wd++;if(i<=t)ps++;if(i>=t)left++}}
+ const av=v/Math.max(1,ps),need=(T-v)/Math.max(1,left),tb=mine.filter(o=>isoD(o.at)==td),sales=sum(tb,'total'),shops=new Set(tb.map(o=>o.cid||o.id)).size,
+  mc=CUST.filter(c=>c.owner==U.uid),visited=mc.filter(c=>c.lastVisit==td).length,planned=mc.filter(dueToday),done=planned.filter(c=>c.lastVisit==td).length,missed=planned.length-done,
+  conv=visited?Math.min(100,Math.round(shops/visited*100)):null,avg=tb.length?sales/tb.length:null,dT=T/Math.max(1,wd),ach=T?Math.round(sales/dT*100):null,comp=planned.length?Math.round(done/planned.length*100):null,
+  t0=new Date(n.getFullYear(),n.getMonth(),n.getDate()).getTime(),fu=REM.filter(r=>r.done&&r.doneAt>=t0&&r.uid==U.uid).length,
+  col=(x,g,o)=>x==null?'var(--mu)':x>=g?'var(--gr)':x>=o?'var(--or)':'var(--rd)',
+  tile=(l,val,sub,c)=>`<div style="background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px;min-width:0"><div class=mu>${l}</div><div style="font-size:26px;font-weight:800;color:${c};line-height:1.2">${val}</div><div class=mu>${sub}</div></div>`;
+ const K=[[conv,50,'Order conversion is the weakest today. Before you leave each shop, ask what it needs and offer one focus product.'],[ach,100,'You are behind today\'s sales target. Revisit shops that did not order and use the focus list.'],[comp,90,'Some planned shops are not visited yet. Visit them, or move them to another day, before you close.']].filter(k=>k[0]!=null&&k[0]<k[1]).sort((x,y)=>x[0]/x[1]-y[0]/y[1])[0];
+ e.innerHTML=(T?`<div class=card><div class=row><b style=flex:1>Monthly target</b><b>${p}%</b></div><div style="height:10px;background:var(--bd);border-radius:6px;margin:6px 0"><div style="height:10px;width:${p}%;background:var(--gr);border-radius:6px"></div></div><div class=mu>${money(v)} of ${money(T)} (sales with VAT, minus returns)</div><div class=row style="margin-top:8px"><span style=flex:1>Daily average</span><b>${money(av)}</b></div><div class=row><span style=flex:1>Needed per day (${left} working days left)</span><b style="color:${av>=need?'var(--gr)':'var(--rd)'}">${money(Math.max(0,need))}</b></div></div>`:'')+
+ `<b>Today</b><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0">`+
+ tile('Order conversion',conv==null?'-':conv+'%','Shops ordering ÷ shops visited ('+shops+' of '+visited+')',col(conv,50,30))+
+ tile('Average order',avg==null?'-':'SAR '+money(avg),'Sales today ÷ bills ('+tb.length+')',avg==null?'var(--mu)':'var(--tx)')+
+ tile('Target achievement',ach==null?'-':ach+'%',T?'Sales today ÷ daily target '+money(dT):'No monthly target set',col(ach,100,70))+
+ tile('Visit completion',comp==null?'-':comp+'%','Planned shops visited ÷ planned ('+done+' of '+planned.length+')',col(comp,90,70))+
+ `</div><div class=mu>Follow-ups completed today: <b>${fu}</b>. Planned shops missed: <b>${missed}</b>.</div>`+(K?`<div class=card style="border-color:var(--or)"><b>Focus for today</b><div>${K[2]}</div></div>`:'');
 }
 function dayLocked(){const l=CLS.find(x=>x.id==U.uid+'_'+todayD());if(l)alert('Today is already closed. Ask the admin to reopen the day to add more.');return !!l}
 async function reassign(c){

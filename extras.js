@@ -88,7 +88,7 @@ const remCard=r=>{const st=remState(r),col={active:'rejected',scheduled:'admin',
  <button class="b s ghost" data-r=edit data-id=${r.id}>Edit</button><button class="b s red" data-r=del data-id=${r.id}>Delete</button><button class="b s ${r.done?'ghost':'grn'}" data-r=done data-id=${r.id}>${r.done?'Reopen':'Done'}</button></div>`};
 const remAct=e=>{const d=e.target.dataset;if(!d.r)return;const r=REM.find(x=>x.id==d.id);if(!r)return;
  if(d.r=='del'&&confirm('Delete this reminder?'))db.doc('reminders/'+r.id).delete();
- if(d.r=='done')db.doc('reminders/'+r.id).update({done:!r.done});
+ if(d.r=='done')db.doc('reminders/'+r.id).update({done:!r.done,doneAt:r.done?0:Date.now()});
  if(d.r=='edit')remForm(CUST.find(c=>c.id==r.cid)||{id:r.cid,nameEn:r.cname},r)};
 const remSort=a=>{const o={active:0,scheduled:1,expired:2,done:3};return a.slice().sort((x,y)=>o[remState(x)]-o[remState(y)]||(x.from||x.due||'').localeCompare(y.from||y.due||''))};
 function remTab(b){startRem();b.innerHTML=remSort(REM).map(remCard).join('')||'<div class=card>No reminders yet. Open a customer and tap Reminder.</div>';b.onclick=remAct}
