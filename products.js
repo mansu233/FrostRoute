@@ -52,43 +52,47 @@ const thumb=f=>fitImg(f),blobThumb=f=>fitImg(f);
 const usedBcs=()=>new Set(PRODS.flatMap(p=>p.bcs||[]));
 function nextCode(used){let n=Math.max(100000,...PRODS.map(p=>+p.code||0),window.LASTC||0)+1;while(used.has(String(n)))n++;window.LASTC=n;used.add(String(n));return String(n)}
 const autoBc=nextCode;
-function catOpts(sel){const cs=[...new Set(PRODS.map(p=>p.category).filter(Boolean))].sort();return '<option value="">Choose category</option>'+cs.map(c=>`<option ${c==sel?'selected':''}>${esc(c)}</option>`).join('')+'<option value="__new">+ New category...</option>'}
-function unitOpts(sel){const n=[...new Set(['Packet','Carton','Box','Dozen',...PRODS.flatMap(p=>Object.values(p.units||{}).map(u=>u.label).filter(Boolean))])].sort();if(sel&&!n.includes(sel))n.push(sel);return '<option value="">Choose unit</option>'+n.filter(x=>x!='Pcs').map(x=>`<option ${x==sel?'selected':''}>${esc(x)}</option>`).join('')+'<option value="__new">+ New unit...</option>'}
-const urow=(n,q,bc)=>`<div class="card ur"><div class=row><select class=un>${unitOpts(n)}</select><input class=uq type=number placeholder="Pieces in it" value="${q||''}"><button class="b s ghost" type=button data-rm=1>X</button></div><div class=row><input class=ub inputmode=numeric placeholder="Printed barcode of this unit" value="${esc(bc||'')}"><button class="b s" type=button data-sc=1>Scan</button></div></div>`;
+const UDEF={pcs:'PCS',packet:'PKT',carton:'CRT'};
+const unitList=()=>CFG.units&&CFG.units.length?CFG.units:[{n:'Packet',s:'PKT'},{n:'Carton',s:'CRT'}];
+const uKey=n=>n.toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]+/g,'_');
+function uShort(k,p){if(k=='pcs')return 'PCS';const u=p&&p.units&&p.units[k];if(u&&u.short)return u.short;const f=unitList().find(x=>uKey(x.n)==k);return f?f.s:(UDEF[k]||k.slice(0,3).toUpperCase())}
+const catList=()=>[...new Set([...(CFG.cats||[]),...PRODS.map(p=>p.category).filter(Boolean)])].sort();
+const catOpts=sel=>'<option value="">Choose category</option>'+catList().map(c=>`<option ${c==sel?'selected':''}>${esc(c)}</option>`).join('');
 function editForm(p){
  IMG=null;const u=p.units||{},m=document.createElement('div');m.id='pf';
  m.style.cssText='position:fixed;inset:0;background:var(--bg);overflow:auto;z-index:20;padding:12px;padding-top:calc(12px + env(safe-area-inset-top))';
  const f=(i,l,v='',t='text')=>`<label class=mu>${l}</label><input id=f_${i} type=${t} value="${esc(v)}">`;
- const rows=Object.keys(u).filter(k=>k!='pcs'&&u[k]&&u[k].qty).map(k=>urow(u[k].label||k[0].toUpperCase()+k.slice(1),u[k].qty,u[k].bc)).join('');
+ const UL=unitList().map(x=>({k:uKey(x.n),n:x.n,s:x.s}));Object.keys(u).forEach(k=>{if(k!='pcs'&&u[k]&&u[k].qty&&!UL.some(x=>x.k==k))UL.push({k,n:u[k].label||k,s:u[k].short||k.slice(0,3).toUpperCase()})});
+ const urow=x=>{const e=u[x.k]&&u[x.k].qty?u[x.k]:null;return `<div class="card ur" data-k="${esc(x.k)}" data-n="${esc(x.n)}" data-s="${esc(x.s)}"><label class=perm><input type=checkbox class=ut ${e?'checked':''}><span><b>${esc(x.s)}</b> ${esc(x.n)}: also sold in this unit</span></label><div class=uf style="display:${e?'block':'none'}"><div class=row><input class=uq type=number inputmode=numeric placeholder="Pieces inside" value="${e?e.qty:''}"><input class=ub inputmode=numeric placeholder="Barcode" value="${esc(e?e.bc||'':'')}"><button class="b s" type=button data-sc=1>Scan</button></div><div class="mu up"></div></div></div>`};
  m.innerHTML=`<div class=wrap><h2>${p.id?'Edit':'New'} product</h2>
  <img id=f_pv src="${p.img||''}" style="display:${p.img?'block':'none'};width:100%;max-width:260px;aspect-ratio:1;object-fit:contain;background:#fff;border-radius:14px;margin:6px auto">
  <div class=row><button class="b ghost" id=f_cm type=button>Take photo</button><button class="b ghost" id=f_gl type=button>From gallery</button></div>
- <input id=f_rf type=file accept="image/*" capture=environment hidden><input id=f_rg type=file accept="image/*" hidden><p class=mu>The picture is resized and fitted to a clear square automatically.</p>
+ <input id=f_rf type=file accept="image/*" capture=environment hidden><input id=f_rg type=file accept="image/*" hidden>
  ${f('name','Product name (brand, product, size)',p.name||'')}<label class=mu>Category</label><select id=f_cat>${catOpts(p.category)}</select>
- ${f('rate','Price per piece, without VAT',p.rate||'','number')}
- <label class=mu>Piece barcode (printed, optional)</label><div class=row><input id=f_b0 inputmode=numeric value="${esc((u.pcs&&u.pcs.bc)||'')}"><button class="b s" id=f_sb type=button>Scan</button></div>
- <label class=mu>Other units (packet, carton, box...)</label><div id=f_ul>${rows}</div><button class="b s ghost" id=f_au type=button>+ Add unit</button>
- ${f('code','System code (automatic, 6 digits)',p.code||'Created when you save','text').replace('<input','<input readonly')}
- <details><summary>More options</summary>${f('sl','SL (empty = next number)',p.sl||'')}${f('sf','Season from',p.seasonFrom||'','date')}${f('st','Season to',p.seasonTo||'','date')}${ME.role=='admin'?f('cost','Cost (empty = keep saved cost)','','number'):''}<label class=perm><input type=checkbox id=f_act ${p.active===false?'':'checked'}>Active</label></details>
+ ${f('rate','Price per PCS, without VAT',p.rate||'','number')}
+ <div class=card><b>Units</b><div class=mu>PCS is the base unit. Tick the other units this product is sold in.</div>
+ <div class="card"><b>PCS</b> 1 piece<div class=row><input id=f_b0 inputmode=numeric placeholder="Barcode" value="${esc((u.pcs&&u.pcs.bc)||'')}"><button class="b s" id=f_sb type=button>Scan</button></div></div>${UL.map(urow).join('')}</div>
+ <details><summary>More options</summary>${f('sl','SL (empty = next number)',p.sl||'')}${f('code','System code (automatic)',p.code||'Created when you save').replace('<input','<input readonly')}${f('sf','Season from',p.seasonFrom||'','date')}${f('st','Season to',p.seasonTo||'','date')}${ME.role=='admin'?f('cost','Cost (empty = keep saved cost)','','number'):''}<label class=perm><input type=checkbox id=f_act ${p.active===false?'':'checked'}>Active</label></details>
  <p class=err id=fe></p><button class=b id=fs>Save product</button><button class="b ghost" id=fc>Cancel</button></div>`;
  document.body.appendChild(m);draftBind(m,'prod',p.id);
+ const prev=()=>{const r=num($('#f_rate').value);m.querySelectorAll('.ur').forEach(x=>{const q=num(x.querySelector('.uq').value),v=x.querySelector('.up');v.textContent=q&&r?x.dataset.s+' = '+q+' x '+money(r)+' = '+money(q*r)+' ('+money(q*r*(1+(CFG.vatPercent||0)/100))+' with VAT)':''})};
+ m.addEventListener('input',prev);m.addEventListener('change',e=>{if(e.target.classList.contains('ut')){e.target.closest('.ur').querySelector('.uf').style.display=e.target.checked?'block':'none';prev()}});prev();
  $('#fc').onclick=()=>{draftClear();m.remove()};
  const ph=async e=>{const fl=e.target.files[0];if(!fl)return;const d=await fitImg(fl);if(d){IMG=d;$('#f_pv').src=d;$('#f_pv').style.display='block'}};
  $('#f_cm').onclick=()=>pickFile($('#f_rf'));$('#f_gl').onclick=()=>pickFile($('#f_rg'));$('#f_rf').onchange=ph;$('#f_rg').onchange=ph;
  $('#f_sb').onclick=()=>scanCam(c=>{$('#f_b0').value=c});
- $('#f_au').onclick=()=>$('#f_ul').insertAdjacentHTML('beforeend',urow('','',''));
- $('#f_ul').onclick=e=>{const d=e.target.dataset,r=e.target.closest('.ur');if(d.rm&&r)r.remove();if(d.sc&&r)scanCam(c=>{r.querySelector('.ub').value=c})};
- m.addEventListener('change',e=>{const t=e.target;if(t.value!='__new')return;const isU=t.classList.contains('un'),n=(prompt(isU?'New unit name (for example Box, Tray, Kg)':'New category name')||'').trim();if(n){t.add(new Option(n,n));t.value=n}else t.value=''});
+ m.addEventListener('click',e=>{if(e.target.dataset.sc){const r=e.target.closest('.ur');scanCam(c=>{r.querySelector('.ub').value=c})}});
  $('#fs').onclick=async()=>{
   const g=i=>$('#f_'+i).value.trim(),er=t=>$('#fe').textContent=t,rate=num(g('rate'));
   if(!g('name')||!rate)return er('Name and price are required.');
-  const units={pcs:{bc:bcn(g('b0')),qty:1,label:'Pcs'}},names=new Set();
-  for(const r of m.querySelectorAll('.ur')){const n=r.querySelector('.un').value,q=num(r.querySelector('.uq').value),bc=bcn(r.querySelector('.ub').value);if(!n&&!q&&!bc)continue;
-   if(!n||!q)return er('Each unit needs a name and the number of pieces.');const k=n.toLowerCase().replace(/[^a-z0-9\u0600-\u06ff]+/g,'_');if(k=='pcs'||names.has(k))return er('Unit "'+n+'" is used twice.');names.add(k);units[k]={bc,qty:q,label:n}}
+  const units={pcs:{bc:bcn(g('b0')),qty:1,label:'Pcs',short:'PCS'}},nob=[];if(!units.pcs.bc)nob.push('PCS');
+  for(const r of m.querySelectorAll('.ur')){if(!r.querySelector('.ut').checked)continue;const q=num(r.querySelector('.uq').value),bc=bcn(r.querySelector('.ub').value);
+   if(q<=0)return er('Enter the pieces inside for '+r.dataset.s+'.');units[r.dataset.k]={bc,qty:q,label:r.dataset.n,short:r.dataset.s};if(!bc)nob.push(r.dataset.s)}
   const mb=Object.values(units).map(x=>x.bc).filter(Boolean);if(new Set(mb).size<mb.length)return er('Each unit needs its own barcode.');
   const dup=PRODS.find(x=>x.id!=p.id&&(x.bcs||[]).some(b=>mb.includes(b)));if(dup)return er('Barcode already used by '+dup.name);
+  if(nob.length&&!confirm('No barcode for: '+nob.join(', ')+'. Save anyway?'))return;
   const code=p.code||nextCode(new Set([...usedBcs(),...mb])),bcs=[code,...mb],ref=p.id?db.doc('products/'+p.id):db.collection('products').doc();
-  const d={sl:g('sl')?num(g('sl')):(p.sl||Math.max(0,...PRODS.map(x=>x.sl||0))+1),name:g('name'),category:g('cat')=='__new'?'':g('cat'),rate,code,units,bcs,active:$('#f_act').checked,seasonFrom:g('sf'),seasonTo:g('st'),updatedAt:Date.now(),updatedBy:U.uid};
+  const d={sl:g('sl')?num(g('sl')):(p.sl||Math.max(0,...PRODS.map(x=>x.sl||0))+1),name:g('name'),category:g('cat'),rate,code,units,bcs,active:$('#f_act').checked,seasonFrom:g('sf'),seasonTo:g('st'),updatedAt:Date.now(),updatedBy:U.uid};
   if(IMG)d.img=IMG;
   try{await ref.set(d,{merge:true});if(p.id)await ref.update({units});logAct(p.id?'Product edited':'Product added',d.name+', rate '+d.rate+(p.id&&p.rate!=d.rate?' (was '+p.rate+')':''));
    if(ME.role=='admin'&&g('cost')!=='')await db.doc('productCosts/'+ref.id).set({cost:num(g('cost'))});draftClear();m.remove()}catch(x){er(x.message)}

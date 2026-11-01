@@ -34,7 +34,7 @@ function retView(){
  OV=retView;const m=ov(),vp=CFG.vatPercent||0,sub=RT.lines.reduce((s,l)=>s+l.qty*l.rate,0),tot=sub*(1+vp/100);
  m.innerHTML=`<div class=row style="padding:8px 0"><h2 style=flex:1>Return: ${esc(RT.c.nameEn)}</h2><button class="b s ghost" id=rx>Close</button></div>
  <div class=row><input id=rbc placeholder="Scan or type barcode, then Enter"><button class="b s" id=rsc>Scan</button></div><input id=rad placeholder="Search product"><div id=rres></div>
- ${RT.lines.map((l,i)=>`<div class=card><b>${esc(l.name)}</b><div class=row><button class="b s" data-a=unit data-i=${i}>${l.unit}</button><input type=number min=1 value=${l.qty} data-a=qty data-i=${i} style="width:90px"><span class=mu>x ${money(l.rate)}</span><b style="margin-left:auto">${money(l.qty*l.rate)}</b><button class="b s ghost" data-a=del data-i=${i}>Remove</button></div></div>`).join('')}
+ ${RT.lines.map((l,i)=>`<div class=card><b>${esc(l.name)}</b><div class=row><button class="b s" data-a=unit data-i=${i}>${uShort(l.unit,PRODS.find(x=>x.id==l.pid))}</button><input type=number min=1 value=${l.qty} data-a=qty data-i=${i} style="width:90px"><span class=mu>x ${money(l.rate)}</span><b style="margin-left:auto">${money(l.qty*l.rate)}</b><button class="b s ghost" data-a=del data-i=${i}>Remove</button></div></div>`).join('')}
  <div class=card><div class=row><span style=flex:1>Subtotal</span><b>${money(sub)}</b></div><div class=row><span style=flex:1><b>Return total (VAT ${vp}%)</b></span><b>${money(tot)}</b></div>
  <select id=rrs>${['Damaged','Expired','Melted','Wrong item','Customer refused','Other'].map(x=>`<option ${x==RT.reason?'selected':''}>${x}</option>`).join('')}</select>
  <select id=rrf><option value=cash ${RT.refund=='cash'?'selected':''}>Cash refund</option><option value=credit ${RT.refund=='credit'?'selected':''}>Credit note</option><option value=replace ${RT.refund=='replace'?'selected':''}>Replace (no money)</option></select></div>
@@ -87,7 +87,7 @@ function dueOn(c,t,ds){if(c.extraDate==ds)return true;if(c.skipDate==ds)return f
 function loadListView(el,member){
  loadCash();const draw=()=>{const t=new Date();t.setDate(t.getDate()+1);const ds=isoD(+t),cs=CUST.filter(c=>dueOn(c,t,ds)),tot={};
  cs.forEach(c=>{const s=stats(c.id).cust;for(const pid in s){const k=pid+'|'+s[pid].unit;tot[k]=(tot[k]||0)+Math.max(1,Math.round(s[pid].q/s[pid].n))}});
- const buf=1+(CFG.loadBuffer||0)/100,L=Object.keys(tot).map(k=>{const [pid,u]=k.split('|'),p=PRODS.find(x=>x.id==pid);return {n:p?p.name:'?',u,q:Math.ceil(tot[k]*buf)}}).sort((a,b)=>a.n.localeCompare(b.n));
+ const buf=1+(CFG.loadBuffer||0)/100,L=Object.keys(tot).map(k=>{const [pid,u]=k.split('|'),p=PRODS.find(x=>x.id==pid);return {n:p?p.name:'?',u:uShort(u,p),q:Math.ceil(tot[k]*buf)}}).sort((a,b)=>a.n.localeCompare(b.n));
  const txt=`*LOAD LIST* – ${DAYS[t.getDay()]} ${ds}\n${cs.length} customers, +${CFG.loadBuffer}% buffer\n`+L.map((x,i)=>`${i+1}. ${x.n} – ${x.q} ${x.u}`).join('\n');
  el.innerHTML=`<div id=cw2>${member?'<button class="b s ghost" onclick="sig=\'\';route()">Back</button>':''}<h2>Load list for ${DAYS[t.getDay()]} ${ds}</h2><p class=mu>${cs.length} customers planned. Built from their past orders, plus ${CFG.loadBuffer}% buffer. It improves every week.</p>
  ${L.map(x=>`<div class=card><div class=row><b style=flex:1>${esc(x.n)}</b><b>${x.q} ${x.u}</b><input type=checkbox style="width:22px;margin:0 0 0 10px"></div></div>`).join('')||'<div class=card>No history yet for tomorrow\'s customers.</div>'}
