@@ -32,10 +32,10 @@ function profileView(c){
  <div class=row style="margin-top:8px"><div style=flex:1><div class=mu>Balance due</div><b class="${bal>0?'err':''}">${money(bal)}</b></div><div style=flex:1><div class=mu>Last order</div><b>${last?new Date(last.at).toLocaleDateString():'none'}</b>${last?`<div class=mu>${money(last.total)}</div>`:''}</div></div>
  ${rem.length?`<div class=err data-a=remv style="cursor:pointer">${rem.map(r=>esc(r.text)).join('; ')} (tap to manage)</div>`:''}</div>
  ${b('in','Check in','grn')}${b('ledger','Open ledger')}${b('shelf','Shelf Check','')}${b('order','New order','')}
- ${b('pay','Collect payment')}${b('ret','Return')}${b('remv','Reminders')}${ME.role=='admin'?b('cl','Credit limit'):''}${b('hist','Sales history')}${b('nav','Navigate')}`;
+ ${b('pay','Collect payment')}${b('ret','Return')}${b('remv','Reminders')}${ME.role=='admin'?b('cl','Credit limit'):''}${hasF()?b('files','Photos and documents'):''}${b('hist','Sales history')}${b('nav','Navigate')}`;
  $('#px').onclick=closeOv;qShopNotes(c);
  m.onclick=e=>{const a=e.target.dataset.a;if(!a)return;
-  if(a=='in')return checkIn(c).then(()=>{if(hasQ())askQs(c)});if(a=='ledger')return ledgerView(c);if(a=='hist')return custHistory(c);if(a=='remv')return remView(c);if(a=='cl'){const v=prompt('Credit limit for '+c.nameEn+' (0 = no limit)',c.creditLimit||0);if(v!==null)db.doc('customers/'+c.id).update({creditLimit:+dg(v).replace(/[^\d.]/g,'')||0});return}if(a=='nav')return c.lat?open(`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`):alert('No saved location.');
+  if(a=='in')return checkIn(c).then(()=>{if(hasQ())askQs(c)});if(a=='ledger')return ledgerView(c);if(a=='hist')return custHistory(c);if(a=='remv')return remView(c);if(a=='files')return filesView(c);if(a=='cl'){const v=prompt('Credit limit for '+c.nameEn+' (0 = no limit)',c.creditLimit||0);if(v!==null)db.doc('customers/'+c.id).update({creditLimit:+dg(v).replace(/[^\d.]/g,'')||0});return}if(a=='nav')return c.lat?open(`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`):alert('No saved location.');
   closeOv();if(a=='shelf')shelfStart(c);if(a=='order')orderStart(c);if(a=='pay')collectPay(c);if(a=='ret')returnStart(c)};
 }
 /* ---- ranking ---- */

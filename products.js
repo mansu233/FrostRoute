@@ -102,7 +102,7 @@ function editForm(p){
 async function showCost(){
  const r=db.doc('productCosts/_pin'),s=await r.get();
  if(!s.exists){const n=prompt('Create a cost PIN (4 to 8 digits)');if(!/^\d{4,8}$/.test(n||''))return;await r.set({h:await hash(n,'cost')});alert('Cost PIN saved. Tap Show cost again.');return}
- const v=prompt('Enter cost PIN');if(!v)return;
+ const v=prompt('Enter cost PIN. Leave empty if you forgot it.');if(!v){if(confirm('Forgot the cost PIN? Reset it with your admin account password.'))resetCostPin();return}
  if(await hash(v,'cost')!==s.data().h)return alert('Wrong cost PIN.');
  COSTMAP={};(await db.collection('productCosts').get()).forEach(d=>{if(d.id!='_pin')COSTMAP[d.id]=d.data().cost});
  COSTOK=Date.now()+30000;drawProds();setTimeout(()=>{COSTOK=0;COSTMAP={};drawProds()},30500);

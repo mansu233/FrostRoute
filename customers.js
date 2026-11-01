@@ -91,7 +91,7 @@ async function custForm(c){
  const f=(i,l,v='',x='')=>`<label class=mu>${l}</label><input id=c_${i} value="${esc(v)}" ${x}>`;
  m.innerHTML=`<div class=wrap><h2>${c.id?'Edit':'Add'} customer</h2>
  <img id=c_pv src="${c.photo||''}" style="display:${c.photo?'block':'none'};width:100%;max-height:220px;object-fit:cover;border-radius:14px;margin:6px 0"><div class=row><button class="b ghost" id=c_cam type=button>Shop photo: take</button><button class="b ghost" id=c_gl type=button>From gallery</button></div><input id=c_file type=file accept="image/*" capture=environment hidden><input id=c_gal type=file accept="image/*" hidden>
- ${f('en','Shop name (English)',c.nameEn)}${f('ar','Shop name (Arabic)',c.nameAr,'dir=rtl')}${f('code','Customer code',c.code)}${f('vat','VAT No',c.vat)}${f('cr','CR No (س.ت)',c.cr)}
+ ${f('en','Shop name (English)',c.nameEn)}${f('ar','Shop name (Arabic)',c.nameAr,'dir=rtl')}${f('code','Customer code (automatic)',c.code||'Created when you save').replace('<input','<input readonly')}${f('vat','VAT No',c.vat)}${f('cr','CR No (س.ت)',c.cr)}
  ${f('ph','Phone (required)',c.phone,'inputmode=tel')}${f('sup','Supervisor name',c.sup)}${f('ad','Address (English, required)',c.address)}${f('op','Opening balance: amount owed before the app (optional)',c.opening||'','inputmode=decimal')}
  <label class=mu>Visit</label><select id=c_vt><option value=weekly>Weekly</option><option value=skip>Weekly, can skip a week</option><option value=monthly>Monthly (app picks the day)</option></select>
  <select id=c_day>${DAYS.map((d,i)=>`<option value=${i}>${d}</option>`).join('')}</select>
@@ -109,15 +109,15 @@ async function custForm(c){
   const er=t=>$('#c_er').textContent=t;let en=g('en'),ar=g('ar'),ad=g('ad');
   if(!en&&!ar)return er('Enter the shop name in English or Arabic.');if(!en)en=toEn(ar);if(!ar)ar=toAr(en);
   const phone=ph(g('ph'));if(phone.length<9)return er('A phone number is required.');if(!ad)return er('Address is required.');if(isAr(ad))ad=toEn(ad);
-  const code=g('code'),vat=dg(g('vat')),cr=dg(g('cr')),oth=CUST.filter(x=>x.id!=c.id);
+  const code=c.code||'',vat=dg(g('vat')),cr=dg(g('cr')),oth=CUST.filter(x=>x.id!=c.id);
   if(code&&oth.find(x=>x.code==code))return er('This customer code already exists. Open the existing shop.');
   const dup=oth.filter(x=>(vat&&x.vat==vat)||(cr&&x.cr==cr)||x.phone==phone);
-  if(dup.length){if(!code)return er('Possible duplicate of '+dup[0].nameEn+'. Add a different customer code to save it as another shop.');
+  if(dup.length){
    if(!confirm('Possible duplicate of '+dup[0].nameEn+' (same VAT, CR or phone). Save anyway as a different shop?'))return}
   const d={nameEn:en,nameAr:ar,code,vat,cr,phone,sup:g('sup'),address:ad,photo:SP||c.photo||'',opening:+dg(g('op'))||0,visitType:$('#c_vt').value,day:+$('#c_day').value,updatedAt:Date.now()};
   if(pos){d.lat=pos.lat;d.lng=pos.lng;d.acc=pos.acc}
   if(!c.id){d.owner=U.uid;d.ownerName=ME.name;d.createdAt=Date.now();d.lead=true}
-  try{await(c.id?db.doc('customers/'+c.id).update(d):db.collection('customers').add(d));draftClear();m.remove()}catch(x){er(x.message)}
+  try{if(!c.id&&!d.code){try{d.code=String(await nextCustCode())}catch(e){d.codePending=true}}await(c.id?db.doc('customers/'+c.id).update(d):db.collection('customers').add(d));draftClear();m.remove()}catch(x){er(x.message)}
  };
 }
 
