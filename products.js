@@ -4,7 +4,7 @@ let PRODS=[],pUnsub=null,PQ={q:'',cat:'',max:'',sort:'name'},COSTOK=0,COSTMAP={}
 const canAdd=()=>ME.role=='admin'||(ME.perms&&ME.perms.addProducts);
 const dg=s=>String(s??'').replace(/[٠-٩]/g,d=>d.charCodeAt(0)-1632);
 const bcn=s=>dg(s).trim().toUpperCase(),num=s=>+dg(s).replace(/[^\d.]/g,'')||0;
-const money=n=>(+n).toFixed(2),vat=p=>p*(1+(CFG.vatPercent||0)/100);
+const money=n=>(+n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}),vat=p=>p*(1+(CFG.vatPercent||0)/100);
 
 function productsView(el,member){
  el.innerHTML=`${member?'<button class="b s ghost" onclick="sig=\'\';route()">Back</button>':''}
