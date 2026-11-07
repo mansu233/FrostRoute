@@ -82,7 +82,9 @@ async function homeView(el){
 }
 
 /* camera safety: keep the form, skip the PIN for 3 minutes after a photo, restore after a page restart */
-function pickFile(inp){NOLOCK=Date.now()+18e4;window.noLock=NOLOCK;try{sessionStorage.setItem('unl',Date.now()+18e4)}catch(e){}inp.click()}
+function pickFile(inp){NOLOCK=Date.now()+18e4;window.noLock=NOLOCK;try{sessionStorage.setItem('unl',Date.now()+18e4)}catch(e){}
+ if(!inp.isConnected){inp.style.display='none';document.body.appendChild(inp);const old=inp.onchange;inp.onchange=async function(ev){try{await old.call(this,ev)}finally{inp.remove()}};addEventListener('focus',()=>setTimeout(()=>{if(!inp.files.length)inp.remove()},2500),{once:true})}
+ inp.click()}
 function draftBind(m,type,id){const sv=()=>{const v={};m.querySelectorAll('input,select,textarea').forEach(e=>{if(e.id&&e.type!='file')v[e.id]=e.type=='checkbox'?e.checked:e.value});try{localStorage.setItem('formdraft',JSON.stringify({type,id:id||'',v,at:Date.now(),uid:U.uid}))}catch(x){}};m.addEventListener('input',sv);m.addEventListener('change',sv)}
 const draftClear=()=>localStorage.removeItem('formdraft');
 function restoreDraft(){let d;try{d=JSON.parse(localStorage.getItem('formdraft'))}catch(e){}
@@ -98,7 +100,7 @@ function bulkPhotos(){
    if(!p){miss.push(f.name);continue}const d=await thumb(f);if(!d){miss.push(f.name);continue}
    b.update(db.doc('products/'+p.id),{img:d});ok++;if(++n%200==0){await b.commit();b=db.batch()}}
   await b.commit();alert(ok+' photos attached.'+(miss.length?'\n\nNo matching product for:\n'+miss.slice(0,15).join('\n'):''))};
- NOLOCK=Date.now()+18e4;i.click();
+ pickFile(i);
 }
 
 /* numbered permission list, from least powerful to most powerful */

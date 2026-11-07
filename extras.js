@@ -27,15 +27,15 @@ function profileView(c){
  loadCash();OV=()=>profileView(c);const m=ov(),bal=custBal(c.id),last=ORDS.find(o=>o.cid==c.id&&o.status!='cancelled'),rem=REM.filter(r=>r.cid==c.id&&remActive(r));
  const b=(a,l,k='ghost')=>`<button class="b ${k}" data-a=${a}>${l}</button>`;
  m.innerHTML=`<div class=row style="padding:8px 0"><h2 style=flex:1>${esc(c.nameEn)}</h2><button class="b s ghost" id=px>Close</button></div>
- <div class=card>${c.photo?`<img src="${c.photo}" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:8px">`:''}<div dir=rtl>${esc(c.nameAr||'')}</div><div class=mu>${esc(c.address||'')}</div><div>${esc(c.phone||'')} ${c.sup?', supervisor '+esc(c.sup):''}</div>
+ <div class=card>${c.photo?`<img src="${c.photo}" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:8px">`:''}<div class=row style="flex-wrap:wrap"><button class="b s ghost" data-a=pcam>${c.photo?'Change':'Add'} shop photo: camera</button><button class="b s ghost" data-a=pgal>${c.photo?'Change':'Add'} shop photo: gallery</button></div><div dir=rtl>${esc(c.nameAr||'')}</div><div class=mu>${esc(c.address||'')}</div><div>${esc(c.phone||'')} ${c.sup?', supervisor '+esc(c.sup):''}</div>
  <div class=mu>${c.code?'Code '+esc(c.code)+', ':''}${c.visitType=='monthly'?'Monthly visit':DAYS[c.day]+' visit'}${c.lastVisit?', last visit '+c.lastVisit:''}</div>
  <div class=row style="margin-top:8px"><div style=flex:1><div class=mu>Balance due</div><b class="${bal>0?'err':''}">${money(bal)}</b></div><div style=flex:1><div class=mu>Last order</div><b>${last?new Date(last.at).toLocaleDateString():'none'}</b>${last?`<div class=mu>${money(last.total)}</div>`:''}</div></div>
  ${rem.length?`<div class=err data-a=remv style="cursor:pointer">${rem.map(r=>esc(r.text)).join('; ')} (tap to manage)</div>`:''}</div>
- ${b('in','Check in','grn')}${b('ledger','Open ledger')}${b('shelf','Shelf Check','')}${b('order','New order','')}
+ ${b('shr','Share on WhatsApp','grn')}${b('in','Check in','grn')}${b('ledger','Open ledger')}${b('shelf','Shelf Check','')}${b('order','New order','')}
  ${b('pay','Collect payment')}${b('ret','Return')}${b('remv','Reminders')}${ME.role=='admin'?b('cl','Credit limit'):''}${hasF()?b('files','Photos and documents'):''}${b('hist','Sales history')}${b('nav','Navigate')}`;
  $('#px').onclick=closeOv;qShopNotes(c);
  m.onclick=e=>{const a=e.target.dataset.a;if(!a)return;
-  if(a=='in')return checkIn(c).then(()=>{if(hasQ())askQs(c)});if(a=='ledger')return ledgerView(c);if(a=='hist')return custHistory(c);if(a=='remv')return remView(c);if(a=='files')return filesView(c);if(a=='cl'){const v=prompt('Credit limit for '+c.nameEn+' (0 = no limit)',c.creditLimit||0);if(v!==null)db.doc('customers/'+c.id).update({creditLimit:+dg(v).replace(/[^\d.]/g,'')||0});return}if(a=='nav')return c.lat?open(`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`):alert('No saved location.');
+  if(a=='in')return checkIn(c).then(()=>{if(hasQ())askQs(c)});if(a=='ledger')return ledgerView(c);if(a=='hist')return custHistory(c);if(a=='remv')return remView(c);if(a=='pcam'||a=='pgal')return shopPhoto(c,a=='pcam');if(a=='shr')return shareCust(c);if(a=='files')return filesView(c);if(a=='cl'){const v=prompt('Credit limit for '+c.nameEn+' (0 = no limit)',c.creditLimit||0);if(v!==null)db.doc('customers/'+c.id).update({creditLimit:+dg(v).replace(/[^\d.]/g,'')||0});return}if(a=='nav')return c.lat?open(`https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`):alert('No saved location.');
   closeOv();if(a=='shelf')shelfStart(c);if(a=='order')orderStart(c);if(a=='pay')collectPay(c);if(a=='ret')returnStart(c)};
 }
 /* ---- ranking ---- */
@@ -130,3 +130,27 @@ function weekView(el){
 
 function moveDay(c){if(!c)return;const ds=WDAYS.filter(d=>d!=(CFG.holiday??5)),i=+prompt('Move "'+c.nameEn+'" to which visit day?\n'+ds.map((d,k)=>(k+1)+'. '+DAYS[d]).join('\n'));
  if(!i||!ds[i-1])return;db.doc('customers/'+c.id).update({day:ds[i-1],visitType:c.visitType=='monthly'?'weekly':c.visitType});logAct('Visit day changed',c.nameEn+' to '+DAYS[ds[i-1]])}
+
+/* change the shop photo from the profile (camera or gallery) */
+function shopPhoto(c,cam){const i=document.createElement('input');i.type='file';i.accept='image/*';if(cam)i.capture='environment';
+ i.onchange=async()=>{const f=i.files[0];if(!f)return;const d=await shrink(f);if(!d)return alert('Could not read this picture.');c.photo=d;db.doc('customers/'+c.id).update({photo:d}).catch(e=>alert('Could not save: '+e.message));profileView(c)};
+ pickFile(i)}
+/* share customer details on WhatsApp: text with location link, plus photos through the phone's share sheet */
+function shareCust(c){
+ const w=document.createElement('div');w.style.cssText='position:fixed;inset:0;background:var(--bg);overflow:auto;z-index:40;padding:12px;padding-top:calc(12px + env(safe-area-inset-top))';
+ const ck=(id,l,on=true)=>`<label class=perm><input type=checkbox id=${id} ${on?'checked':''}><span>${l}</span></label>`;
+ w.innerHTML=`<div class=wrap><h2>Share ${esc(c.nameEn)}</h2><p class=mu>Choose what to send. WhatsApp opens from the phone's share list.</p>${ck('s_n','Name (English and Arabic)')}${ck('s_p','Phone and supervisor')}${ck('s_a','Address')}${ck('s_l','Location link (Google Maps)',!!c.lat)}${c.photo?ck('s_f','Shop photo'):''}${hasF()?ck('s_z','Freezer photos',false):''}
+ <button class=b id=s_go>Share</button><button class="b ghost" id=s_x>Cancel</button></div>`;document.body.appendChild(w);$('#s_x').onclick=()=>w.remove();
+ $('#s_go').onclick=async()=>{const on=i=>$('#'+i)&&$('#'+i).checked,L=[];
+  if(on('s_n'))L.push('*'+(c.nameEn||'')+'*'+(c.nameAr?' / '+c.nameAr:''));
+  if(on('s_p')){const p=ph(c.phone||'');if(c.phone)L.push('Phone: '+c.phone+(c.sup?' (supervisor '+c.sup+')':''))}
+  if(on('s_a')&&c.address)L.push('Address: '+c.address);
+  if(on('s_l')&&c.lat)L.push('Location: https://www.google.com/maps?q='+c.lat+','+c.lng);
+  const text=L.join('\n'),files=[],toF=async(u,n)=>{const b=await (await fetch(u)).blob();return new File([b],n+'.jpg',{type:'image/jpeg'})};
+  try{if(on('s_f'))files.push(await toF(c.photo,'shop'));
+   if(on('s_z')){let q=db.collection('custFiles').where('cid','==',c.id);if(ME.role!='admin')q=q.where('owner','==',U.uid);(await q.get()).docs.map(d=>d.data()).filter(x=>x.slot=='photo').forEach((x,k)=>files.push(null||{u:x.pages[0],n:'freezer'+(k+1)}));
+    for(let k=0;k<files.length;k++)if(files[k]&&files[k].u)files[k]=await toF(files[k].u,files[k].n)}}catch(e){}
+  const ok=files.filter(Boolean);
+  try{if(ok.length&&navigator.canShare&&navigator.canShare({files:ok})){await navigator.share({text,files:ok,title:c.nameEn});w.remove();return}}catch(e){if(e.name=='AbortError')return}
+  open('https://wa.me/?text='+encodeURIComponent(text));if(ok.length)alert('This phone cannot attach photos from here. The text was opened in WhatsApp. Send the photos from the gallery.');w.remove()};
+}

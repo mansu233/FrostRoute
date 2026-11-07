@@ -28,7 +28,7 @@ function addFile(c,slot,kind){
   try{const st=slot=='photo'?new Date().toLocaleString('en-GB')+' | '+(c.nameEn||'')+' | '+ME.name:'',pages=kind=='pdf'?await pdfPages(f):[await procImg(f,slot=='photo'?1000:1300,slot=='photo'?.75:.68,st)];
    if(pages.reduce((s,x)=>s+x.length,0)>950000)return alert('This file is too large. Use a smaller or clearer picture.');
    const cap=(prompt(slot=='photo'?'Freezer serial number or a note (optional)':'What is this document? (optional)')||'').trim();
-   db.collection('custFiles').add({cid:c.id,cname:c.nameEn||c.nameAr,owner:c.owner||U.uid,uid:U.uid,by:ME.name,slot,cap,pages,at:Date.now()});logAct('Customer file added',(c.nameEn||'')+', '+FL[slot])}catch(e){alert('Could not read this file. '+e.message)}};
+   db.collection('custFiles').add({cid:c.id,cname:c.nameEn||c.nameAr,owner:c.owner||U.uid,uid:U.uid,by:ME.name,slot,cap,pages,at:Date.now()}).catch(e=>alert('The file could not be saved: '+e.message+'. Ask the admin to check the permission and publish the latest rules.'));logAct('Customer file added',(c.nameEn||'')+', '+FL[slot])}catch(e){alert('Could not read this file. '+e.message)}};
  pickFile(inp);
 }
 /* ---- gallery (hidden until opened from the profile) ---- */
