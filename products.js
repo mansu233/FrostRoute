@@ -142,7 +142,7 @@ function importCsv(){
    if(++tot%100==0){await b.commit();b=db.batch()}
   }
   await b.commit();t.remove();alert(n+' products imported or updated.\n'+auto+' got an automatic 6-digit barcode.\n'+pic+' pictures added'+(miss?', '+miss+' pictures could not be loaded (the link must be a direct image link that allows access).':'.'));
- };i.click();
+ };i.style.display='none';document.body.appendChild(i);window._pk=i;i.click();
 }
 /* iPhone / browsers without BarcodeDetector: ZXing library, loads once (needs internet the first time) */
 async function scanZx(cb){
