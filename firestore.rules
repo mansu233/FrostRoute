@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function me() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function isAdmin() { return signedIn() && me().role == 'admin' && me().status == 'approved'; }
+    function setupDone() { return exists(/databases/$(database)/documents/meta/setup); }
+
+    // The very first account becomes admin. Everyone after that starts as a pending member.
+    match /meta/{d} {
+      allow read: if signedIn();
+      allow create: if signedIn() && !setupDone();
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create: if request.auth.uid == uid && (
+        (!setupDone() && request.resource.data.role == 'admin') ||
+        (request.resource.data.role == 'member' && request.resource.data.status == 'pending'
+          && request.resource.data.perms.size() == 0));
+      allow update, delete: if isAdmin();
+    }
+
+    // VAT %, GPS limit, etc. Everyone reads, only admin writes.
+    match /settings/{d} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Products: admin, or an approved member with the matching permission.
+    match /products/{d} {
+      allow read: if signedIn() && (isAdmin() || me().perms.get('viewProducts', false) == true || me().perms.get('createOrders', false) == true);
+      allow write: if isAdmin() || (signedIn() && me().status == 'approved' && me().perms.get('addProducts', false) == true);
+    }
+
+    // Customers, visits and reminders: private to the salesperson who owns them. Admin sees all.
+    match /customers/{d} {
+      allow read: if signedIn() && (isAdmin() || (resource.data.owner == request.auth.uid && me().perms.get('manageCustomers', false) == true));
+      allow create: if signedIn() && request.resource.data.owner == request.auth.uid && me().status == 'approved' && me().perms.get('manageCustomers', false) == true;
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.owner == request.auth.uid && request.resource.data.owner == request.auth.uid && me().perms.get('manageCustomers', false) == true);
+    }
+
+    // Orders: private to the salesperson, admin sees all. Updates are for cancelling only.
+    match /orders/{d} {
+      allow read: if signedIn() && (isAdmin() || resource.data.uid == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid && me().status == 'approved' && me().perms.get('createOrders', false) == true;
+      allow update: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid && me().perms.get('cancelSent', false) == true) || (signedIn() && resource.data.uid == request.auth.uid && resource.data.status == 'open');
+    }
+
+    // Visits, reminders, payments, returns, expenses, closings: private to the salesperson, admin sees all.
+    match /{coll}/{d} {
+      allow read: if (coll in ['visits','reminders','payments','returns','expenses','closings','lostSales']) && signedIn() && (isAdmin() || resource.data.uid == request.auth.uid);
+      allow create: if (coll in ['visits','reminders','payments','returns','expenses','closings','lostSales']) && signedIn() && request.resource.data.uid == request.auth.uid && me().status == 'approved';
+      allow update: if coll == 'reminders' && signedIn() && (isAdmin() || resource.data.uid == request.auth.uid);
+      allow update: if coll == 'returns' && isAdmin();
+      allow delete: if coll == 'reminders' && signedIn() && (isAdmin() || resource.data.uid == request.auth.uid);
+      allow update, delete: if coll == 'closings' && isAdmin();
+    }
+
+    // Activity log: anyone signed in can add their own entries, only admin reads.
+    match /activity/{d} {
+      allow read: if isAdmin();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+    }
+
+    // 30-day plan: private. Only the owner can read or write it (the admin cannot read other people's plans).
+    match /planProgress/{d} {
+      allow read, write: if signedIn() && request.auth.uid == d && me().status == 'approved' && (me().role == 'admin' || me().perms.get('skillPlan', false) == true);
+    }
+
+    // Customer question answers: private. Only the person who wrote them can read them (the admin cannot read other people's answers).
+    match /custAnswers/{d} {
+      allow read, delete: if signedIn() && resource.data.uid == request.auth.uid && me().status == 'approved' && (me().role == 'admin' || me().perms.get('custQ', false) == true);
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid && me().status == 'approved' && (me().role == 'admin' || me().perms.get('custQ', false) == true);
+    }
+
+    // Automatic customer serial: one counter that only ever goes up by one.
+    match /meta/custSeq {
+      allow read: if signedIn() && me().status == 'approved' && (me().role == 'admin' || me().perms.get('manageCustomers', false) == true);
+      allow create: if signedIn() && me().status == 'approved' && (me().role == 'admin' || me().perms.get('manageCustomers', false) == true) && request.resource.data.n == 1001;
+      allow update: if signedIn() && me().status == 'approved' && (me().role == 'admin' || me().perms.get('manageCustomers', false) == true) && request.resource.data.n == resource.data.n + 1;
+    }
+
+    // Customer photos and documents: the owner (with the permission) and the admin only.
+    match /custFiles/{d} {
+      allow read, update, delete: if signedIn() && me().status == 'approved' && (me().role == 'admin' || (resource.data.owner == request.auth.uid && me().perms.get('custFiles', false) == true));
+      allow create: if signedIn() && me().status == 'approved' && (me().role == 'admin' || (request.resource.data.owner == request.auth.uid && request.resource.data.uid == request.auth.uid && me().perms.get('custFiles', false) == true));
+    }
+
+    // Cost prices (Phase 2): admin only, never readable by members.
+    match /productCosts/{d} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

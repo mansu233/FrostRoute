@@ -46,8 +46,8 @@ function drawProds(){
  L.innerHTML=h;
 }
 /* ----- add / edit form (simple) ----- */
-const fitImg=(f,S=360,q=.82)=>new Promise(r=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,S,S);const s=Math.min(S/im.width,S/im.height),w=im.width*s,h=im.height*s;x.imageSmoothingQuality='high';x.drawImage(im,(S-w)/2,(S-h)/2,w,h);r(c.toDataURL('image/jpeg',q));URL.revokeObjectURL(im.src)};im.onerror=()=>r(null);im.src=URL.createObjectURL(f)});
-const shrink=(f,M=560,q=.72)=>new Promise(r=>{const im=new Image();im.onload=()=>{const s=Math.min(1,M/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);const x=c.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(im,0,0,c.width,c.height);r(c.toDataURL('image/jpeg',q));URL.revokeObjectURL(im.src)};im.onerror=()=>r(null);im.src=URL.createObjectURL(f)});
+const fitImg=(f,S=360,q=.82)=>new Promise(r=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,S,S);const s=Math.min(S/im.width,S/im.height),w=im.width*s,h=im.height*s;x.imageSmoothingQuality='high';x.drawImage(im,(S-w)/2,(S-h)/2,w,h);r(c.toDataURL('image/jpeg',q));URL.revokeObjectURL(im.src)};im.onerror=()=>r(null);prep(f).then(b=>{im.src=URL.createObjectURL(b)}).catch(()=>r(null))});
+const shrink=(f,M=560,q=.72)=>new Promise(r=>{const im=new Image();im.onload=()=>{const s=Math.min(1,M/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);const x=c.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(im,0,0,c.width,c.height);r(c.toDataURL('image/jpeg',q));URL.revokeObjectURL(im.src)};im.onerror=()=>r(null);prep(f).then(b=>{im.src=URL.createObjectURL(b)}).catch(()=>r(null))});
 const thumb=f=>fitImg(f),blobThumb=f=>fitImg(f);
 const usedBcs=()=>new Set(PRODS.flatMap(p=>p.bcs||[]));
 function nextCode(used){let n=Math.max(100000,...PRODS.map(p=>+p.code||0),window.LASTC||0)+1;while(used.has(String(n)))n++;window.LASTC=n;used.add(String(n));return String(n)}
@@ -78,7 +78,7 @@ function editForm(p){
  const prev=()=>{const r=num($('#f_rate').value);m.querySelectorAll('.ur').forEach(x=>{const q=num(x.querySelector('.uq').value),v=x.querySelector('.up');v.textContent=q&&r?x.dataset.s+' = '+q+' x '+money(r)+' = '+money(q*r)+' ('+money(q*r*(1+(CFG.vatPercent||0)/100))+' with VAT)':''})};
  m.addEventListener('input',prev);m.addEventListener('change',e=>{if(e.target.classList.contains('ut')){e.target.closest('.ur').querySelector('.uf').style.display=e.target.checked?'block':'none';prev()}});prev();
  $('#fc').onclick=()=>{draftClear();m.remove()};
- const ph=async e=>{const fl=e.target.files[0];if(!fl)return;const d=await fitImg(fl);if(d){IMG=d;$('#f_pv').src=d;$('#f_pv').style.display='block'}};
+ const ph=async e=>{const fl=e.target.files[0];if(!fl)return;const d=await fitImg(fl);if(d){IMG=d;$('#f_pv').src=d;$('#f_pv').style.display='block'}else alert('Could not read this picture. Try another photo or use the camera.')};
  $('#f_cm').onclick=()=>pickFile($('#f_rf'));$('#f_gl').onclick=()=>pickFile($('#f_rg'));$('#f_rf').onchange=ph;$('#f_rg').onchange=ph;
  $('#f_sb').onclick=()=>scanCam(c=>{$('#f_b0').value=c});
  m.addEventListener('click',e=>{if(e.target.dataset.sc){const r=e.target.closest('.ur');scanCam(c=>{r.querySelector('.ub').value=c})}});

@@ -10,9 +10,10 @@ async function resetCostPin(){const pw=prompt('Enter your admin account password
  try{await auth.currentUser.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(U.email,pw))}catch(e){return alert('Wrong password.')}
  const n=prompt('New cost PIN (4 to 8 digits)');if(!/^\d{4,8}$/.test(n||''))return;await db.doc('productCosts/_pin').set({h:await hash(n,'cost')});logAct('Cost PIN reset','');alert('Cost PIN changed. Tap Show cost again.')}
 /* ---- image and PDF helpers ---- */
-const loadSrc=s=>new Promise(ok=>{const i=new Image();i.onload=()=>ok(i);i.src=s});
+const loadSrc=s=>new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>no(new Error('This picture format is not supported. Try another photo or use the camera.'));i.src=s});
 const loadScript=u=>new Promise((ok,no)=>{const s=document.createElement('script');s.src=u;s.onload=ok;s.onerror=()=>no(new Error('Needs internet the first time'));document.head.appendChild(s)});
-async function procImg(f,max,q,stamp){const im=await loadSrc(URL.createObjectURL(f)),s=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);const x=c.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(im,0,0,c.width,c.height);
+async function prep(f){if(/heic|heif/i.test(f.type||'')||/\.(heic|heif)$/i.test(f.name||'')){if(!window.heic2any)await loadScript('https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js');const r=await heic2any({blob:f,toType:'image/jpeg',quality:.85});return Array.isArray(r)?r[0]:r}return f}
+async function procImg(f,max,q,stamp){const im=await loadSrc(URL.createObjectURL(await prep(f))),s=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);const x=c.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(im,0,0,c.width,c.height);
  if(stamp){const h=Math.max(20,Math.round(c.width/34));x.fillStyle='rgba(0,0,0,.55)';x.fillRect(0,c.height-h*1.7,c.width,h*1.7);x.fillStyle='#fff';x.font=h+'px sans-serif';x.fillText(stamp,h*.4,c.height-h*.55)}return c.toDataURL('image/jpeg',q)}
 async function pdfPages(f){if(!window.pdfjsLib){await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'}
  const d=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise,o=[];for(let i=1;i<=Math.min(2,d.numPages);i++){const p=await d.getPage(i),v=p.getViewport({scale:1100/p.getViewport({scale:1}).width}),c=document.createElement('canvas');c.width=v.width;c.height=v.height;await p.render({canvasContext:c.getContext('2d'),viewport:v}).promise;o.push(c.toDataURL('image/jpeg',.68))}return o}
@@ -53,4 +54,11 @@ function fileViewer(f){
   $('#vx').onclick=()=>{const k=Math.floor(100+Math.random()*900);if(prompt('Delete this file? Type '+k+' to confirm')==k){db.doc('custFiles/'+f.id).delete();logAct('Customer file deleted',(f.cname||'')+', '+(f.cap||FL[f.slot]));w.remove()}else alert('Code did not match. Nothing deleted.')};
   if($('#vp')){$('#vp').onclick=()=>{pg=(pg-1+f.pages.length)%f.pages.length;draw()};$('#vn').onclick=()=>{pg=(pg+1)%f.pages.length;draw()}}};
  draw();
+}
+
+/* ---- shop photo straight from the profile (camera or gallery) ---- */
+function setShopPhoto(c,kind){
+ const i=document.createElement('input');i.type='file';i.accept='image/*';if(kind=='cam')i.capture='environment';
+ i.onchange=async()=>{const f=i.files[0];if(!f)return;try{const d=await shrink(f);if(!d)throw new Error('Could not read this picture. Try another photo or use the camera.');db.doc('customers/'+c.id).update({photo:d});c.photo=d;alert('Shop photo saved.');if($('#ov'))profileView(c)}catch(e){alert(e.message)}};
+ pickFile(i);
 }
