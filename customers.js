@@ -1,3 +1,5 @@
+/* M1: phone and address are optional, location is required, note box */
+function custValidate(phone,pos){if(phone&&phone.length<9)return 'The phone number looks too short. Enter all the digits, or leave it empty.';if(!pos)return 'Location is required. Tap Retake location.';return ''}
 /* Phase 3: customers, camera reading (free on-device OCR), visit plan, GPS check-in, reminders */
 let CUST=[],REM=[],cUnsub=null,rUnsub=null,CV={tab:'today',q:'',pos:null};
 const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -56,7 +58,7 @@ function drawCust(){
  if(CV.tab=='rem')return remTab(b);
  let a=CUST.slice();const q=CV.q.toLowerCase(),qd=ph(CV.q);
  if(CV.tab=='today'){a=a.filter(dueToday)}
- else if(q)a=a.filter(c=>(`${c.nameEn} ${c.nameAr} ${c.sup} ${c.address} ${c.code} ${c.vat}`).toLowerCase().includes(q)||(qd.length>=3&&(c.phone||'').includes(qd)));
+ else if(q)a=a.filter(c=>(`${c.nameEn} ${c.nameAr} ${c.sup||''} ${c.address||''} ${c.code||''} ${c.vat||''} ${c.note||''}`).toLowerCase().includes(q)||(qd.length>=3&&(c.phone||'').includes(qd)));
  if(CV.pos)a.forEach(c=>c._d=c.lat?hav(CV.pos.lat,CV.pos.lng,c.lat,c.lng):1e9),a.sort((x,y)=>x._d-y._d);else a.sort((x,y)=>(x.nameEn||'').localeCompare(y.nameEn||''));
  const lim=CFG.dailyVisitLimit;
  b.innerHTML=`<div class=row><input id=cq placeholder="Search name, phone, supervisor, address, code" value="${esc(CV.q)}"><button class="b s" id=cn style="width:auto">Nearest</button></div>
@@ -73,7 +75,7 @@ function drawCust(){
  ${admin||(ME.perms&&ME.perms.createOrders)?`<div><button class="b s" data-a=shelf data-id=${c.id}>Shelf Check</button><button class="b s" data-a=order data-id=${c.id}>New order</button></div>`:''}
  <div>${admin||(ME.perms&&ME.perms.collectPayments)?`<button class="b s grn" data-a=pay data-id=${c.id}>Collect payment</button>`:''}${admin||(ME.perms&&ME.perms.makeReturns)?`<button class="b s red" data-a=ret data-id=${c.id}>Return</button>`:''}</div></div>`;
  const tg=`${c.lead?'<span class="tag admin">Lead</span> ':''}${custBal(c.id)>0?'<span class="tag rejected">Due</span> ':''}${rc?'<span class="tag rejected">'+rc+'</span> ':''}${c.lat?'':'<span class="tag pending">No loc</span> '}`;
- return `<div class=card style="padding:0;overflow:hidden"><div class=row data-a=open data-id=${c.id} style="padding:12px 14px;cursor:pointer;gap:10px"><span class=mu style="width:30px;font-weight:700">${i+1}</span>${c.photo?`<img src="${c.photo}" style="width:42px;height:42px;object-fit:cover;border-radius:9px">`:''}<div style="flex:1;min-width:0"><b>${esc(c.nameEn||'')}</b> <span dir=rtl class=mu>${esc(c.nameAr||'')}</span><div class=mu style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.address||'')}${c._d<1e9?', '+(c._d>999?(c._d/1000).toFixed(1)+' km':c._d+' m'):''}</div></div><div style="text-align:right">${tg}</div><span style="font-size:20px;color:var(--mu)">${CV.open==c.id?'&#9662;':'&#8250;'}</span></div>${CV.open==c.id?`<div style="padding:0 14px 14px;border-top:1px solid var(--bd)">${det}</div>`:''}</div>`}).join('');
+ return `<div class=card style="padding:0;overflow:hidden"><div class=row data-a=open data-id=${c.id} style="padding:12px 14px;cursor:pointer;gap:10px"><span class=mu style="width:30px;font-weight:700">${i+1}</span>${c.photo?`<img src="${c.photo}" style="width:42px;height:42px;object-fit:cover;border-radius:9px">`:''}<div style="flex:1;min-width:0"><b>${esc(c.nameEn||'')}</b> <span dir=rtl class=mu>${esc(c.nameAr||'')}</span><div class=mu style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.address||'')}${c.note?(c.address?' | ':'')+esc(c.note):''}${c._d<1e9?', '+(c._d>999?(c._d/1000).toFixed(1)+' km':c._d+' m'):''}</div></div><div style="text-align:right">${tg}</div><span style="font-size:20px;color:var(--mu)">${CV.open==c.id?'&#9662;':'&#8250;'}</span></div>${CV.open==c.id?`<div style="padding:0 14px 14px;border-top:1px solid var(--bd)">${det}</div>`:''}</div>`}).join('');
  $('#cq').oninput=e=>{CV.q=e.target.value;const p=e.target.selectionStart;drawCust();const n=$('#cq');n.focus();n.setSelectionRange(p,p)};
  $('#cn').onclick=async()=>{try{CV.pos=await getPos();drawCust()}catch(x){alert('Turn on GPS and allow location for this site.')}};
  b.onclick=async e=>{const t=e.target.closest('[data-a]');if(!t)return;const d=t.dataset,c=CUST.find(x=>x.id==d.id);if(d.a=='open'){CV.open=CV.open==d.id?null:d.id;return drawCust()}
@@ -92,14 +94,14 @@ async function custForm(c){
  m.innerHTML=`<div class=wrap><h2>${c.id?'Edit':'Add'} customer</h2>
  <img id=c_pv src="${c.photo||''}" style="display:${c.photo?'block':'none'};width:100%;max-height:220px;object-fit:cover;border-radius:14px;margin:6px 0"><div class=row><button class="b ghost" id=c_cam type=button>Shop photo: take</button><button class="b ghost" id=c_gl type=button>From gallery</button></div><input id=c_file type=file accept="image/*" capture=environment hidden><input id=c_gal type=file accept="image/*" hidden>
  ${f('en','Shop name (English)',c.nameEn)}${f('ar','Shop name (Arabic)',c.nameAr,'dir=rtl')}${f('code','Customer code (automatic)',c.code||'Created when you save').replace('<input','<input readonly')}${f('vat','VAT No',c.vat)}${f('cr','CR No (س.ت)',c.cr)}
- ${f('ph','Phone (required)',c.phone,'inputmode=tel')}${f('sup','Supervisor name',c.sup)}${f('ad','Address (English, required)',c.address)}${f('op','Opening balance: amount owed before the app (optional)',c.opening||'','inputmode=decimal')}
+ ${f('ph','Phone (optional)',c.phone,'inputmode=tel')}${f('sup','Supervisor name',c.sup)}${f('ad','Address (English, optional)',c.address)}<label class=mu>Note (optional)</label><textarea id=c_note rows=2 style="width:100%;padding:10px;border:1.5px solid var(--bd);border-radius:12px;background:var(--card);color:var(--tx);font:inherit">${esc(c.note||'')}</textarea>${f('op','Opening balance: amount owed before the app (optional)',c.opening||'','inputmode=decimal')}
  <label class=mu>Visit</label><select id=c_vt><option value=weekly>Weekly</option><option value=skip>Weekly, can skip a week</option><option value=monthly>Monthly (app picks the day)</option></select>
  <select id=c_day>${DAYS.map((d,i)=>`<option value=${i}>${d}</option>`).join('')}</select>
  <p class=mu id=c_loc>${c.lat?'Location saved (±'+(c.acc||'?')+' m)':'Getting GPS location…'}</p><button class="b s ghost" id=c_rl type=button>Retake location</button>
  <p class=err id=c_er></p><button class=b id=c_sv>Save customer</button><button class="b ghost" id=c_x>Cancel</button></div>`;
  document.body.appendChild(m);draftBind(m,'cust',c.id);let SP=null;const g=i=>$('#c_'+i).value.trim();let pos=c.lat?{lat:c.lat,lng:c.lng,acc:c.acc}:null;
  $('#c_vt').value=c.visitType||'weekly';$('#c_day').value=c.day??new Date().getDay();$('#c_x').onclick=()=>{draftClear();m.remove()};
- const loc=async()=>{try{pos=await getPos();$('#c_loc').textContent='Location saved (±'+pos.acc+' m)'+(pos.acc>100?'. Weak GPS, try outside.':'')}catch(e){$('#c_loc').textContent='No location yet. It can be saved at the next check-in.'}};
+ const loc=async()=>{try{pos=await getPos();$('#c_loc').textContent='Location saved (±'+pos.acc+' m)'+(pos.acc>50?'. Weak GPS, try the shop door.':'')}catch(e){$('#c_loc').textContent='No location yet. It can be saved at the next check-in.'}};
  $('#c_rl').onclick=loc;if(!c.lat)loc();
  $('#c_en').onblur=()=>{if(g('en')&&(!g('ar')||m.autoAr))$('#c_ar').value=toAr(g('en')),m.autoAr=1};
  $('#c_ar').onblur=()=>{if(g('ar')&&(!g('en')||m.autoEn))$('#c_en').value=toEn(g('ar')),m.autoEn=1};
@@ -108,13 +110,13 @@ async function custForm(c){
  $('#c_sv').onclick=async()=>{
   const er=t=>$('#c_er').textContent=t;let en=g('en'),ar=g('ar'),ad=g('ad');
   if(!en&&!ar)return er('Enter the shop name in English or Arabic.');if(!en)en=toEn(ar);if(!ar)ar=toAr(en);
-  const phone=ph(g('ph'));if(phone.length<9)return er('A phone number is required.');if(!ad)return er('Address is required.');if(isAr(ad))ad=toEn(ad);
+  const phone=ph(g('ph')),bad=custValidate(phone,pos);if(bad)return er(bad);if(pos&&pos.acc>50&&!confirm('Location accuracy is +/- '+pos.acc+' m. Save anyway?'))return;if(ad&&isAr(ad))ad=toEn(ad);
   const code=c.code||'',vat=dg(g('vat')),cr=dg(g('cr')),oth=CUST.filter(x=>x.id!=c.id);
   if(code&&oth.find(x=>x.code==code))return er('This customer code already exists. Open the existing shop.');
-  const dup=oth.filter(x=>(vat&&x.vat==vat)||(cr&&x.cr==cr)||x.phone==phone);
+  const dup=oth.filter(x=>(vat&&x.vat==vat)||(cr&&x.cr==cr)||(phone&&x.phone==phone));
   if(dup.length){
    if(!confirm('Possible duplicate of '+dup[0].nameEn+' (same VAT, CR or phone). Save anyway as a different shop?'))return}
-  const d={nameEn:en,nameAr:ar,code,vat,cr,phone,sup:g('sup'),address:ad,photo:SP||c.photo||'',opening:+dg(g('op'))||0,visitType:$('#c_vt').value,day:+$('#c_day').value,updatedAt:Date.now()};
+  const d={nameEn:en,nameAr:ar,code,vat,cr,phone,sup:g('sup'),address:ad,note:g('note'),photo:SP||c.photo||'',opening:+dg(g('op'))||0,visitType:$('#c_vt').value,day:+$('#c_day').value,updatedAt:Date.now()};
   if(pos){d.lat=pos.lat;d.lng=pos.lng;d.acc=pos.acc}
   if(!c.id){d.owner=U.uid;d.ownerName=ME.name;d.createdAt=Date.now();d.lead=true}
   try{if(!c.id&&!d.code){try{d.code=String(await nextCustCode())}catch(e){d.codePending=true}}await(c.id?db.doc('customers/'+c.id).update(d):db.collection('customers').add(d));draftClear();m.remove()}catch(x){er(x.message)}
